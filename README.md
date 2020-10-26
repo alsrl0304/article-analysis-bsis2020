@@ -12,7 +12,7 @@ Article Analysis RnE Project for Busanil Science High School, 2020 <br>
 - -p --press [언론] [joongang | donga] <br>
 - -c --collect: 기사 목록 검색 <br>
     - -n --number [찾을 기사 수] <br>
-    - -s --search [주 검색어] <br>
+    - -q --search [주 검색어] <br>
     - -d --detail [부가 포함 검색어] <br>
     - -l --list   (저장할 파일명) <br>
 - -s --scrap 기사 내용 스크랩 <br>
