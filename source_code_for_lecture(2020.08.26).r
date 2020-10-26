@@ -1,13 +1,13 @@
 ###############################################################
 # LDA를 활용한 텍스트 마이닝을 프로그램(강의용 샘플 프로그램) #
-# 작성자 : 고신대학교 조경원, 동의대학교 우영운               #
-# 작성일 : 2017. 4. 2                                         #
-# 최종 수정일 : 2019. 6. 7                                    # 
+# 작성자 : 고신대학교 조경원, 동의대학교 우영운            #
+# 작성일 : 2017. 4. 2                             #
+# 최종 수정일 : 2019. 10. 26                       # 
 ###############################################################
 
 
 #####################################################
-# 관련 라이브러리 설치 루틴                         #
+# 관련 라이브러리 설치 루틴                           #
 #####################################################
 # RStudio에서 처음 실행시 아래 패키지들을 설치하여야 함.
 install.packages("rJava")
@@ -17,9 +17,9 @@ install.packages('archivist')
 install.packages('backports')
 install.packages('bit64')
 install.packages("NLP")        #단어 처리를 위한 기본 함수 패키지
-#install.packages("openNLP")    #영어용 추가 기능 공개용 패키지
+#install.packages("openNLP")   #영어용 추가 기능 공개용 패키지
 
-#install.packages("KoNLP")      #한글언어 처리용 KoNLP 패키지
+#install.packages("KoNLP")     #한글언어 처리용 KoNLP 패키지
 
 
 install.packages("tm")         #TextMining 패키지
@@ -33,8 +33,8 @@ install.packages('wordcloud2') #wordcloud2 패키지
 install.packages('tidytext')   #tidytext 패키지
 install.packages('Rcpp')       #Rcpp 패키지
 install.packages('slam')       #slam 패키지
-install.packages('rlang')
-install.packages('vctrs')
+install.packages('rlang')      #rlang 패키지
+install.packages('vctrs')      #vctrs 패키지
 
 
 install.packages("multilinguer")
