@@ -7,7 +7,7 @@
 # -p --press [언론] [joongang | donga]
 # -c --collect: 기사 목록 검색
 #     -n --number [찾을 기사 수]
-#     -s --search [주 검색어]
+#     -q --search [주 검색어]
 #     -d --detail [부가 포함 검색어]
 #     -l --list   (저장할 파일명)
 #
