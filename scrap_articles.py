@@ -22,7 +22,7 @@ import datetime  # 시각 모듈
 import getopt  # 명령행 인수 파서
 import inspect  # 텍스트 도구
 import csv  # csv 파서
-from press_scraper import JoongangScraper, DongaScraper  # 링크 스크래퍼 클래스
+from press_scraper import JoongangScraper, DongaScraper, ChosunScraper  # 링크 스크래퍼 클래스
 
 
 def print_help(exit_code):
@@ -32,7 +32,7 @@ def print_help(exit_code):
     print(inspect.cleandoc('''사용법: [-h] [-p <press>] [-c -n <number> -q <query> -d <detail>]
                                       [-s -o <output>] [-l <list>]
                               -h --help: 도움말
-                              -p --press [언론] [joongang | donga]
+                              -p --press [언론] [joongang | donga | chosun]
                               -c --collect: 기사 목록 검색
                                   -n --number [찾을 기사 수]
                                   -q --query [주 검색어]
@@ -74,7 +74,7 @@ def main(argv):
         if opt in ('-h', '--help'):  # 도움말
             print_help(0)
         elif opt in ('-p', '--press'):  # 언론
-            if arg in ('joongang', 'donga'):
+            if arg in ('joongang', 'donga', 'chosun'):
                 press = arg
             else:
                 print_help(1)
@@ -110,10 +110,15 @@ def main(argv):
     # 작업 진행
 
     # 스크래퍼 선택
+
+    chromedriver_path = './chromedriver'
+
     if press == 'joongang':
         scraper = JoongangScraper()
     elif press == 'donga':
-        scraper = DongaScraper('./chromedriver.exe')
+        scraper = DongaScraper(chromedriver_path)
+    elif press == 'chosun':
+        scraper = ChosunScraper(chromedriver_path)
     else:
         print_help(1)
 

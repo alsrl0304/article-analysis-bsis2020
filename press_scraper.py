@@ -6,7 +6,6 @@
 import sys  # 시스템 모듈
 import re  # 정규표현식
 from functools import reduce  # 고차함수
-from overrides import overrides  # 오버라이드 데코레이터
 
 import requests  # HTTP REQUEST를 위한 모듈
 from bs4 import BeautifulSoup  # HTML 분석기
@@ -70,7 +69,6 @@ class JoongangScraper(Scraper):
     중앙일보용 스크래퍼
     """
 
-    @overrides
     def collect_articles(self, number_of_articles, query_word, detail_word):
         ARTICLES_PER_PAGE = 10  # 페이지당 기사 수
         article_list = []
@@ -102,7 +100,6 @@ class JoongangScraper(Scraper):
 
         return article_list
 
-    @overrides
     def scrap_articles(self, article_href):
 
         soup = Scraper._get_soup(Scraper._request_get(article_href).text)
@@ -136,7 +133,6 @@ class DongaScraper(Scraper):
     def __init__(self, path_chromedriver):
         self.path_chromedriver = path_chromedriver
 
-    @overrides
     def collect_articles(self, number_of_articles, query_word, detail_word):
         # 기사 링크만 필터링
         ARTICLE_HREF_FILTER = re.compile(r'.+/news/article/.+')
@@ -179,7 +175,6 @@ class DongaScraper(Scraper):
 
         return article_list
 
-    @ overrides
     def scrap_articles(self, article_href):
         soup = Scraper._get_soup(Scraper._request_get(article_href).text)
 
@@ -202,3 +197,83 @@ class DongaScraper(Scraper):
 
         # {'date': (날짜), 'title': (제목), 'content': (내용)} 딕셔너리로 반환
         return {'date': date, 'title': title, 'body': body}
+
+class ChosunScraper(Scraper):
+    """
+    조선일보용 스크래퍼
+    """
+
+    def __init__(self, path_chromedriver):
+        self.path_chromedriver = path_chromedriver
+
+    def collect_articles(self, number_of_articles, query_word, detail_word):
+        ARTICLES_PER_PAGE = 10  # 페이지당 기사 수
+        article_list = []
+
+        # Selenium 설정
+        options = webdriver.ChromeOptions()  # Chromedriver 옵션
+        options.add_argument('headless')  # 헤드리스(GUI 없음) 모드
+        options.add_argument('window-size=1920x1080')
+        options.add_argument("disable-gpu")
+        options.add_argument("--log-level=3")
+        driver = webdriver.Chrome(
+            self.path_chromedriver, chrome_options=options)
+
+        driver.get(f'https://www.chosun.com/nsearch/?query={query_word}&siteid=&sort=1&date_period=all&writer=&field=&emd_word={detail_word}&expt_word=&opt_chk=false')
+        
+        num = 0  # 찾은 기사 수
+        for _ in range(number_of_articles // ARTICLES_PER_PAGE + 1):
+            if num >= number_of_articles:
+                break
+
+            WebDriverWait(driver, 10).until(expected_conditions.presence_of_element_located((
+                By.CSS_SELECTOR, '#main > div.search-feed > div > div')))
+
+            soup = Scraper._get_soup(driver.page_source)
+
+            for _ in range(ARTICLES_PER_PAGE): # 한 페이지의 기사 스크랩
+
+                # 검색 결과의 제목과 사이트 주소가 포함되어 있는 부분의 css class
+                link_element = soup.select(
+                    f'#main > div.search-feed > div:nth-child({num+1}) > div'
+                    '> div.story-card.story-card--art-left.\|.flex.flex--wrap.box--hidden-md.box--hidden-lg'
+                    '> div.story-card-right.\|.grid__col--sm-9.grid__col--md-9.grid__col--lg-9.box--pad-left-xs'
+                    '> div.story-card__headline-container.\|.box--margin-bottom-xs > h3 > a'
+                )[0]
+
+                article = {'href': link_element.get("href"), 
+                    'title': Scraper._clean_text(link_element.span.get_text())}
+                article_list.append(article)
+                num = num + 1
+                print(num, article['href'], sep=': ')
+            
+            driver.find_element_by_css_selector('#load-more-stories').click()
+
+        return article_list
+
+    def scrap_articles(self, article_href):
+        soup = Scraper._get_soup(Scraper._request_get(article_href).text)
+
+        # 기사 날짜 추출
+        date_element = soup.select(
+            '#container > div.article_title > div.title_foot > span.date01')[0]  # 최초 일자 요소 (최종 수정일자는 [1]번째 요소)
+        date = Scraper._extract_date(
+            date_element.get_text())  # 정규식으로 날짜만 얻어옴
+
+        # 기사 제목 추출
+        title_element = soup.select(
+            '#container > div.article_title > h1')[0]  # 기사 제목 요소 추출. 하나임
+        title = Scraper._clean_text(title_element.get_text())
+
+        # 기사 본문 추출하는 부분
+        body_element = soup.select(
+            '#content > div > div.article_txt')[0]  # 기사 내용 요소 추출, 하나임
+
+        body = Scraper._clean_text(body_element.get_text())
+
+        # {'date': (날짜), 'title': (제목), 'content': (내용)} 딕셔너리로 반환
+        return {'date': date, 'title': title, 'body': body}
+
+    
+
+
