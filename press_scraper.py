@@ -141,18 +141,18 @@ class DongaScraper(Scraper):
         options.add_argument('window-size=1920x1080')
         options.add_argument("disable-gpu")
         options.add_argument("--log-level=3")
-        driver = webdriver.Chrome(
+        self.driver = webdriver.Chrome(
             self.path_chromedriver, chrome_options=options)
 
         num = 0  # 찾은 기사 수
         for page in range(0, (number_of_articles // ARTICLES_PER_PAGE) + 1):
-            driver.get(
+            self.driver.get(
                 f'https://www.donga.com/news/search?p={1+page*ARTICLES_PER_PAGE}&query={query_word}&check_news=1&more=1&sorting=1&search_date=1&v1=&v2=&range=1')
 
-            WebDriverWait(driver, 10).until(expected_conditions.presence_of_element_located((
+            WebDriverWait(self.driver, 10).until(expected_conditions.presence_of_element_located((
                 By.CSS_SELECTOR, '#content > div.searchContWrap > div.searchCont > div.searchList > div.t > p.tit > a')))
 
-            soup = Scraper._get_soup(driver.page_source)
+            soup = Scraper._get_soup(self.driver.page_source)
 
             link_elements = soup.select(
                 '#content > div.searchContWrap > div.searchCont > div.searchList > div.t > p.tit > a')  # 검색 결과의 제목과 사이트 주소가 포함되어 있는 부분의 css selector.
@@ -198,30 +198,29 @@ class ChosunScraper(Scraper):
     """
 
     def __init__(self, path_chromedriver):
-        self.path_chromedriver = path_chromedriver
-
-    def collect_articles(self, number_of_articles, query_word, detail_word):
-        ARTICLES_PER_PAGE = 10  # 페이지당 기사 수
-
         # Selenium 설정
         options = webdriver.ChromeOptions()  # Chromedriver 옵션
         options.add_argument('headless')  # 헤드리스(GUI 없음) 모드
         options.add_argument('window-size=1920x1080')
         options.add_argument("disable-gpu")
         options.add_argument("--log-level=3")
-        driver = webdriver.Chrome(
-            self.path_chromedriver, chrome_options=options)
+        self.driver = webdriver.Chrome(
+            path_chromedriver, chrome_options=options)
 
-        driver.get(f'https://www.chosun.com/nsearch/?query={query_word}&siteid=&sort=1&date_period=all&writer=&field=&emd_word={detail_word}&expt_word=&opt_chk=false')
+
+    def collect_articles(self, number_of_articles, query_word, detail_word):
+        ARTICLES_PER_PAGE = 10  # 페이지당 기사 수
+
+        self.driver.get(f'https://www.chosun.com/nsearch/?query={query_word}&siteid=www&sort=1&date_period=all&writer=&field=&emd_word={detail_word}&expt_word=&opt_chk=false')
         
         num = 0  # 찾은 기사 수
         for _ in range(number_of_articles // ARTICLES_PER_PAGE + 1):
             
 
-            WebDriverWait(driver, 10).until(expected_conditions.presence_of_element_located((
+            WebDriverWait(self.driver, 10).until(expected_conditions.presence_of_element_located((
                 By.CSS_SELECTOR, f'#main > div.search-feed > div:nth-child({num+1}) > div')))
 
-            soup = Scraper._get_soup(driver.page_source)
+            soup = Scraper._get_soup(self.driver.page_source)
 
             for _ in range(ARTICLES_PER_PAGE): # 한 페이지의 기사 스크랩
                 if num >= number_of_articles:
@@ -233,17 +232,22 @@ class ChosunScraper(Scraper):
                     '> div.story-card-right > div.story-card__headline-container > h3 > a'
                 )[0]
 
-                article = {'href': link_element.get("href"), 
+                article = {'href': 'https://www.chosun.com' + link_element.get("href"), 
                     'title': Scraper._clean_text(link_element.span.get_text())}
                 
                 yield article
                 num = num + 1
             
-            driver.find_element_by_css_selector('#load-more-stories').click()
+            self.driver.find_element_by_css_selector('#load-more-stories').click()
 
 
     def scrap_articles(self, article_href):
-        soup = Scraper._get_soup(Scraper._request_get(article_href).text)
+        self.driver.get(article_href)
+
+        WebDriverWait(self.driver, 10).until(expected_conditions.presence_of_element_located((
+                By.CSS_SELECTOR, '#fusion-app > div.article > div:nth-child(2)')))
+
+        soup = Scraper._get_soup(self.driver.page_source)
 
         # 기사 날짜 추출
         date_element = soup.select(
