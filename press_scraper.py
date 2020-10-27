@@ -55,7 +55,7 @@ class Scraper:
     def _get_soup(source):  # 링크로 HTTP GET한 HTML문서로부터 BS4 객체를 얻어옴
         return BeautifulSoup(source, 'html.parser')
 
-    # {'href': (링크), 'title': (제목)} 딕셔너리의 리스트 형식으로 반환할것
+    # {'href': (링크), 'title': (제목)} 딕셔너리를 제너레이터로 반환할것
     def collect_articles(self, number_of_articles, query_word, detail_word):
         raise NotImplementedError
 
@@ -71,7 +71,6 @@ class JoongangScraper(Scraper):
 
     def collect_articles(self, number_of_articles, query_word, detail_word):
         ARTICLES_PER_PAGE = 10  # 페이지당 기사 수
-        article_list = []
 
         num = 0  # 찾은 기사 수
         for page in range(1, (number_of_articles // ARTICLES_PER_PAGE) + 2):
@@ -94,11 +93,9 @@ class JoongangScraper(Scraper):
                     break
                 article = {'href': element.get(
                     "href"), 'title': Scraper._clean_text(element.get_text())}
-                article_list.append(article)
+                
                 num = num + 1
-                print(num, article['href'], sep=': ')
-
-        return article_list
+                yield article
 
     def scrap_articles(self, article_href):
 
@@ -137,7 +134,6 @@ class DongaScraper(Scraper):
         # 기사 링크만 필터링
         ARTICLE_HREF_FILTER = re.compile(r'.+/news/article/.+')
         ARTICLES_PER_PAGE = 15  # 페이지당 기사 수
-        article_list = []
 
         # Selenium 설정
         options = webdriver.ChromeOptions()  # Chromedriver 옵션
@@ -169,11 +165,9 @@ class DongaScraper(Scraper):
                     break
                 article = {'href': element.get(
                     "href"), 'title': Scraper._clean_text(element.get_text())}
-                article_list.append(article)
+                
+                yield article
                 num = num + 1
-                print(num, article['href'], sep=': ')
-
-        return article_list
 
     def scrap_articles(self, article_href):
         soup = Scraper._get_soup(Scraper._request_get(article_href).text)
@@ -208,7 +202,6 @@ class ChosunScraper(Scraper):
 
     def collect_articles(self, number_of_articles, query_word, detail_word):
         ARTICLES_PER_PAGE = 10  # 페이지당 기사 수
-        article_list = []
 
         # Selenium 설정
         options = webdriver.ChromeOptions()  # Chromedriver 옵션
@@ -223,51 +216,51 @@ class ChosunScraper(Scraper):
         
         num = 0  # 찾은 기사 수
         for _ in range(number_of_articles // ARTICLES_PER_PAGE + 1):
-            if num >= number_of_articles:
-                break
+            
 
             WebDriverWait(driver, 10).until(expected_conditions.presence_of_element_located((
-                By.CSS_SELECTOR, '#main > div.search-feed > div > div')))
+                By.CSS_SELECTOR, f'#main > div.search-feed > div:nth-child({num+1}) > div')))
 
             soup = Scraper._get_soup(driver.page_source)
 
             for _ in range(ARTICLES_PER_PAGE): # 한 페이지의 기사 스크랩
+                if num >= number_of_articles:
+                    break
 
                 # 검색 결과의 제목과 사이트 주소가 포함되어 있는 부분의 css class
                 link_element = soup.select(
-                    f'#main > div.search-feed > div:nth-child({num+1}) > div'
-                    '> div.story-card.story-card--art-left.\|.flex.flex--wrap.box--hidden-md.box--hidden-lg'
-                    '> div.story-card-right.\|.grid__col--sm-9.grid__col--md-9.grid__col--lg-9.box--pad-left-xs'
-                    '> div.story-card__headline-container.\|.box--margin-bottom-xs > h3 > a'
+                    f'#main > div.search-feed > div:nth-child({num+1}) > div > div.story-card'
+                    '> div.story-card-right > div.story-card__headline-container > h3 > a'
                 )[0]
 
                 article = {'href': link_element.get("href"), 
                     'title': Scraper._clean_text(link_element.span.get_text())}
-                article_list.append(article)
+                
+                yield article
                 num = num + 1
-                print(num, article['href'], sep=': ')
             
             driver.find_element_by_css_selector('#load-more-stories').click()
 
-        return article_list
 
     def scrap_articles(self, article_href):
         soup = Scraper._get_soup(Scraper._request_get(article_href).text)
 
         # 기사 날짜 추출
         date_element = soup.select(
-            '#container > div.article_title > div.title_foot > span.date01')[0]  # 최초 일자 요소 (최종 수정일자는 [1]번째 요소)
+            '#fusion-app > div.article > div:nth-child(2) > div'
+            '> section > article > div.article-dateline > span')[0]  # 최초 일자 요소 (최종 수정일자는 [1]번째 요소)
         date = Scraper._extract_date(
             date_element.get_text())  # 정규식으로 날짜만 얻어옴
 
         # 기사 제목 추출
         title_element = soup.select(
-            '#container > div.article_title > h1')[0]  # 기사 제목 요소 추출. 하나임
+            '#fusion-app > div.article > div:nth-child(2) > div'
+            '> div > div.article-header__headline-container > h1 > span')[0]  # 기사 제목 요소 추출. 하나임
         title = Scraper._clean_text(title_element.get_text())
 
         # 기사 본문 추출하는 부분
         body_element = soup.select(
-            '#content > div > div.article_txt')[0]  # 기사 내용 요소 추출, 하나임
+            '#fusion-app > div.article > div:nth-child(2) > div > section > article > section')[0]  # 기사 내용 요소 추출, 하나임
 
         body = Scraper._clean_text(body_element.get_text())
 

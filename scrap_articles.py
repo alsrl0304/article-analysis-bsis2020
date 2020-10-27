@@ -22,6 +22,8 @@ import datetime  # 시각 모듈
 import getopt  # 명령행 인수 파서
 import inspect  # 텍스트 도구
 import csv  # csv 파서
+import traceback # 오류 추적 모듈
+
 from press_scraper import JoongangScraper, DongaScraper, ChosunScraper  # 링크 스크래퍼 클래스
 
 
@@ -61,6 +63,8 @@ def main(argv):
     result_file_name = None  # 결과 파일명
 
     list_file_name = None  # 기사 리스트 파일명
+
+    article_list = [] # 기사 리스트 (파일 저장 안할 때 필요)
 
     try:  # 명령행 인수 파싱
         opts, _ = getopt.getopt(argv, 'hp:cn:q:d:sr:l:', [
@@ -123,43 +127,77 @@ def main(argv):
         print_help(1)
 
     if collect_article is True:  # 기사 수집
-        article_list = scraper.collect_articles(
-            number_of_articles, query_word, detail_word)
-
         # 리스트 저장 여부 확인
-        if scrap_article is False and list_file_name is None:  # 스크랩 작업 없이 리스트 파일 출력 안함
-            list_file_name = f'articles_list_{press}_{query_word}_{detail_word}.csv'
-        if list_file_name is not None:  # 리스트 파일 지정
-            file_list = open(list_file_name, 'w', encoding='utf8')  # 리스트 파일 생성
-            for article in article_list:
-                row = f'{article["href"]}, "{article["title"]}"\n'
-                file_list.write(row)  # 기록
-            file_list.close()  # 스트림 종료
+
+        try:
+            if scrap_article is False and list_file_name is None:  # 스크랩 작업 없이 리스트 파일 이름 기본값
+                list_file_name = f'articles_list_{datetime.datetime.now()}_{press}_{query_word}_{detail_word}.csv'
+
+            if list_file_name is not None:  # 리스트 파일 지정
+                file_list = open(list_file_name, 'w', encoding='utf8')  # 리스트 파일 생성
+
+            print('Collecting Articles')
+
+            num = 1 # 횟수 카운터
+            for article in scraper.collect_articles(number_of_articles, query_word, detail_word):
+                article_list.append(article)
+
+                if list_file_name is not None: # 리스트 파일에 저장
+                    row = f'{article["href"]}, "{article["title"]}"\n'
+                    file_list.write(row)  # 파일에 기록
+
+                    # 작업 상황 출력
+                    print(num, article['href'], sep=': ')
+                    num = num + 1
+
+        except:
+            print('Collection Failed')
+            traceback.print_exc()
+
+            if list_file_name is None:
+                file_backup = open(f'articles_list_backup_{datetime.datetime.now()}_{press}_{query_word}_{detail_word}.csv',
+                 'w', encoding='utf8')
+                for article in article_list:
+                    row = f'{article["href"]}, "{article["title"]}"\n'
+                    file_backup.write(row)  # 기록
+            
+            sys.exit(1)
+        
 
     if scrap_article is True:  # 기사 스크랩
-        if collect_article is not True:  # 기사 수집 안함, 리스트 파일 필요
-            file_list = open(list_file_name, 'r', encoding='utf8')  # 리스트 파일 읽음
-            article_list = csv.reader(file_list)  # csv 파싱
 
-        if result_file_name is None:  # 기본 출력 파일명 지정
-            result_file_name = f'article_scrap_{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
+        try:
+            if collect_article is not True:  # 기사 수집 안함, 리스트 파일 필요
+                file_list = open(list_file_name, 'r', encoding='utf8')  # 리스트 파일 읽음
+                article_list = csv.reader(file_list)  # csv 파싱
 
-        file_result = open(result_file_name, 'w', encoding='utf8')  # 결과 파일 생성
-        file_result.write('"adate", "atitle", "article"\n')  # R 호환 헤더
+            if result_file_name is None:  # 기본 출력 파일명 지정
+                result_file_name = f'article_scrap_{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
 
-        num = 1  # 횟수 카운터
-        for article in article_list:
-            href = article[0]
-            content = scraper.scrap_articles(href)  # 내용 스크랩
-            row = f'"{content["date"]}", "{content["title"]}", "{content["body"]}"\n'
-            file_result.write(row)  # 파일 작성
+            file_result = open(result_file_name, 'w', encoding='utf8')  # 결과 파일 생성
+            file_result.write('"adate", "atitle", "article"\n')  # R 호환 헤더
 
-            # 작업 상황 출력
-            print(num, href, sep=': ')
-            num = num + 1
+            print('Scrapping Articles')
 
-        file_result.close()
+            num = 1  # 횟수 카운터
+            for article in article_list:
+                href = article[0]
+                content = scraper.scrap_articles(href)  # 내용 스크랩
+                row = f'"{content["date"]}", "{content["title"]}", "{content["body"]}"\n'
+                file_result.write(row)  # 파일 작성
 
+                # 작업 상황 출력
+                print(num, href, sep=': ')
+                num = num + 1
 
+            file_result.close()
+
+        except:
+            print('Scraping Failed')
+            traceback.print_exc()
+
+            sys.exit(1)
+
+        
 if __name__ == '__main__':
     main(sys.argv[1:])
