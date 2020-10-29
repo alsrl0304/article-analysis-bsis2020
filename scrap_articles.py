@@ -23,6 +23,8 @@ import getopt  # 명령행 인수 파서
 import inspect  # 텍스트 도구
 import csv  # csv 파서
 import traceback # 오류 추적 모듈
+from threading import Thread # 스레드 모듈
+from queue import Queue # 작업 공유용 큐
 
 from press_scraper import JoongangScraper, DongaScraper, ChosunScraper  # 링크 스크래퍼 클래스
 
@@ -63,8 +65,6 @@ def main(argv):
     result_file_name = None  # 결과 파일명
 
     list_file_name = None  # 기사 리스트 파일명
-
-    article_list = [] # 기사 리스트 (파일 저장 안할 때 필요)
 
     try:  # 명령행 인수 파싱
         opts, _ = getopt.getopt(argv, 'hp:cn:q:d:sr:l:', [
@@ -111,6 +111,12 @@ def main(argv):
     if (collect_article is False) and (scrap_article is False):  # 작업 선택 안함
         print_help(1)
 
+        
+    if list_file_name is None:  # 리스트 파일 이름 기본값
+        list_file_name = f'articles_list_{datetime.datetime.now().strftime("%Y-%m-%d")}_{press}_{query_word or ""}_{detail_word}.csv'
+    if result_file_name is None:  # 기본 출력 파일명 지정
+                result_file_name = f'articles_scrap_{datetime.datetime.now().strftime("%Y-%m-%d")}_{press}_{query_word or ""}_{detail_word}.csv'
+
     # 작업 진행
 
     # 스크래퍼 선택
@@ -126,78 +132,71 @@ def main(argv):
     else:
         print_help(1)
 
-    if collect_article is True:  # 기사 수집
-        # 리스트 저장 여부 확인
 
+    if collect_article is True and scrap_article is True:
+        # TODO: 태스크 큐 기반 멀티스레드 구현.
+        pass
+
+    
+    elif collect_article is True:  # 기사 수집만 진행
         try:
-            if scrap_article is False and list_file_name is None:  # 스크랩 작업 없이 리스트 파일 이름 기본값
-                list_file_name = f'articles_list_{datetime.datetime.now()}_{press}_{query_word}_{detail_word}.csv'
-
-            if list_file_name is not None:  # 리스트 파일 지정
-                file_list = open(list_file_name, 'w', encoding='utf8')  # 리스트 파일 생성
-
             print('Collecting Articles')
 
-            num = 1 # 횟수 카운터
-            for article in scraper.collect_articles(number_of_articles, query_word, detail_word):
-                article_list.append(article)
+            with open(list_file_name, 'w', encoding='utf8') as file_list:
+                list_writer = csv.DictWriter(file_list, ['url', 'title'])
+                list_writer.writeheader()
 
-                if list_file_name is not None: # 리스트 파일에 저장
-                    row = f'{article["href"]}, "{article["title"]}"\n'
-                    file_list.write(row)  # 파일에 기록
+                num = 1 # 횟수 카운터
+                for article in scraper.collect_articles(number_of_articles, query_word, detail_word):
+                    #파일에 기록
+                    #file_list.write(f'{article["url"]}, "{article["title"]}"\n')
+                    list_writer.writerow(article)
 
                     # 작업 상황 출력
-                    print(num, article['href'], sep=': ')
-                    num = num + 1
+                    print(num, article['url'], sep=': ')
+                    num += 1
 
+        except KeyboardInterrupt:
+            print('Collection Aborted by KeyboardInterrupt')
         except:
             print('Collection Failed')
             traceback.print_exc()
 
-            if list_file_name is None:
-                file_backup = open(f'articles_list_backup_{datetime.datetime.now()}_{press}_{query_word}_{detail_word}.csv',
-                 'w', encoding='utf8')
-                for article in article_list:
-                    row = f'{article["href"]}, "{article["title"]}"\n'
-                    file_backup.write(row)  # 기록
-            
             sys.exit(1)
         
 
-    if scrap_article is True:  # 기사 스크랩
-
+    elif scrap_article is True:  # 기사 스크랩만 진행
         try:
-            if collect_article is not True:  # 기사 수집 안함, 리스트 파일 필요
-                file_list = open(list_file_name, 'r', encoding='utf8')  # 리스트 파일 읽음
-                article_list = csv.reader(file_list)  # csv 파싱
-
-            if result_file_name is None:  # 기본 출력 파일명 지정
-                result_file_name = f'article_scrap_{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
-
-            file_result = open(result_file_name, 'w', encoding='utf8')  # 결과 파일 생성
-            file_result.write('"adate", "atitle", "article"\n')  # R 호환 헤더
-
             print('Scrapping Articles')
 
-            num = 1  # 횟수 카운터
-            for article in article_list:
-                href = article[0]
-                content = scraper.scrap_articles(href)  # 내용 스크랩
-                row = f'"{content["date"]}", "{content["title"]}", "{content["body"]}"\n'
-                file_result.write(row)  # 파일 작성
+            with open(result_file_name, 'w', encoding='utf8') as file_result:
+                result_writer = csv.DictWriter(file_result, ['date', 'title', 'body'])
+                result_writer.writeheader()
 
-                # 작업 상황 출력
-                print(num, href, sep=': ')
-                num = num + 1
+                with open(list_file_name, 'r', encoding='utf8') as file_list:
+                    list_reader = csv.DictReader(file_list)
+
+                    num = 1  # 횟수 카운터
+                    for article in list_reader:
+                        url = article['url']
+                        content = scraper.scrap_articles(url)  # 내용 스크랩
+                        #file_result.write(f'"{content["date"]}", "{content["title"]}", "{content["body"]}"\n')  # 파일 작성
+                        result_writer.writerow(content)
+
+                        # 작업 상황 출력
+                        print(num, url, sep=': ')
+                        num += 1
 
             file_result.close()
 
+        except KeyboardInterrupt:
+            print('Collection Aborted by KeyboardInterrupt')
         except:
             print('Scraping Failed')
             traceback.print_exc()
 
             sys.exit(1)
 
-        
+
 if __name__ == '__main__':
     main(sys.argv[1:])
