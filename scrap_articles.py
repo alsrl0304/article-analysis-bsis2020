@@ -159,15 +159,13 @@ def main(argv):
             print('Collecting Articles')
 
             with open(list_file_name, 'w', encoding='utf8') as file_list:
-                list_writer = csv.DictWriter(file_list, ['url', 'title'])
-                list_writer.writeheader()
+                file_list.write('"url", "title"')
 
                 num = 1 # 횟수 카운터
                 for article in scraper.collect_articles(number_of_articles, query_word, detail_word):
                     #파일에 기록
-                    #file_list.write(f'{article["url"]}, "{article["title"]}"\n')
-                    list_writer.writerow(article)
-
+                    file_list.write(f'{article["url"]}, "{article["title"]}"\n')
+                    
                     # 작업 상황 출력
                     print(f'Collecting [{num}] {article["url"]}')
                     num += 1
@@ -186,8 +184,7 @@ def main(argv):
             print('Scrapping Articles')
 
             with open(result_file_name, 'w', encoding='utf8') as file_result:
-                result_writer = csv.DictWriter(file_result, ['date', 'title', 'body'])
-                result_writer.writeheader()
+                file_result.write('"date", "title", "body"')
 
                 with open(list_file_name, 'r', encoding='utf8') as file_list:
                     list_reader = csv.DictReader(file_list)
@@ -196,9 +193,8 @@ def main(argv):
                     for article in list_reader:
                         url = article['url']
                         content = scraper.scrap_articles(url)  # 내용 스크랩
-                        #file_result.write(f'"{content["date"]}", "{content["title"]}", "{content["body"]}"\n')  # 파일 작성
-                        result_writer.writerow(content)
-
+                        file_result.write(f'"{content["date"]}", "{content["title"]}", "{content["body"]}"\n')  # 파일 작성
+                    
                         # 작업 상황 출력
                         print(f'Scraping [{num}] {url}')
                         num += 1
