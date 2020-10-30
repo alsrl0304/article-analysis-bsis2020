@@ -15,7 +15,7 @@ class CollectThread(threading.Thread):
 
     def run(self):
         with open(self.list_file_name, 'w', encoding='utf8') as file_list:
-            file_list.write('"url", "title"')
+            file_list.write('"url", "title"\n')
 
             for article in self.scraper.collect_articles(self.number_of_articles, self.query_word, self.detail_word):
                 #파일에 기록
@@ -42,7 +42,7 @@ class ScrapThread(threading.Thread):
 
     def run(self):
         with open(self.result_file_name, 'w', encoding='utf8') as file_result:
-            file_result.write('"date", "title", "body"')
+            file_result.write('"date", "title", "body"\n')
 
             for _ in range(self.number_of_articles):
                 #작업 큐에서 받아옴

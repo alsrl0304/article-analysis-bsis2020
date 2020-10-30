@@ -159,7 +159,7 @@ def main(argv):
             print('Collecting Articles')
 
             with open(list_file_name, 'w', encoding='utf8') as file_list:
-                file_list.write('"url", "title"')
+                file_list.write('"url", "title"\n')
 
                 num = 1 # 횟수 카운터
                 for article in scraper.collect_articles(number_of_articles, query_word, detail_word):
@@ -184,7 +184,7 @@ def main(argv):
             print('Scrapping Articles')
 
             with open(result_file_name, 'w', encoding='utf8') as file_result:
-                file_result.write('"date", "title", "body"')
+                file_result.write('"date", "title", "body"\n')
 
                 with open(list_file_name, 'r', encoding='utf8') as file_list:
                     list_reader = csv.DictReader(file_list)
