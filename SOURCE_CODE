@@ -1,8 +1,8 @@
 ###############################################################
 # LDA를 활용한 텍스트 마이닝을 프로그램(강의용 샘플 프로그램) #
-# 작성자 : 고신대학교 조경원, 동의대학교 우영운               #
-# 작성일 : 2017. 4. 2                                         #
-# 최종 수정일 : 2019. 6. 7                                    # 
+# 작성자 : 고신대학교 조경원, 동의대학교 우영운              #
+# 작성일 : 2017. 4. 2                                     #
+# 최종 수정일 : 2019. 10. 30                              # 
 ###############################################################
 
 
@@ -32,8 +32,8 @@ install.packages('wordcloud2') #wordcloud2 패키지
 install.packages('tidytext')   #tidytext 패키지
 install.packages('Rcpp')       #Rcpp 패키지
 install.packages('slam')       #slam 패키지
-install.packages('rlang')
-install.packages('vctrs')
+install.packages('rlang')      #rlang 패키지
+install.packages('vctrs')      #vctrs 패키지
 
 
 install.packages("multilinguer")
