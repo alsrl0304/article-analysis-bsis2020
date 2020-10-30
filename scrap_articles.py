@@ -27,6 +27,7 @@ from threading import Thread # 스레드 모듈
 from queue import Queue # 작업 공유용 큐
 
 from press_scraper import JoongangScraper, DongaScraper, ChosunScraper  # 링크 스크래퍼 클래스
+from scraper_thread import CollectThread, ScrapThread
 
 
 def print_help(exit_code):
@@ -134,8 +135,23 @@ def main(argv):
 
 
     if collect_article is True and scrap_article is True:
-        # TODO: 태스크 큐 기반 멀티스레드 구현.
-        pass
+        try:
+            list_queue = Queue()
+            collect_thread = CollectThread(scraper, number_of_articles, query_word, detail_word, list_queue, list_file_name)
+            scrap_thread = ScrapThread(scraper, number_of_articles, list_queue, result_file_name)
+
+            collect_thread.start()
+            scrap_thread.start()
+
+            collect_thread.join()
+            scrap_thread.join()
+
+            print("Process Completed")
+
+        except:
+            print("Process error")
+        
+
 
     
     elif collect_article is True:  # 기사 수집만 진행
@@ -153,7 +169,7 @@ def main(argv):
                     list_writer.writerow(article)
 
                     # 작업 상황 출력
-                    print(num, article['url'], sep=': ')
+                    print(f'Collecting [{num}] {article["url"]}')
                     num += 1
 
         except KeyboardInterrupt:
@@ -184,10 +200,8 @@ def main(argv):
                         result_writer.writerow(content)
 
                         # 작업 상황 출력
-                        print(num, url, sep=': ')
+                        print(f'Scraping [{num}] {url}')
                         num += 1
-
-            file_result.close()
 
         except KeyboardInterrupt:
             print('Collection Aborted by KeyboardInterrupt')

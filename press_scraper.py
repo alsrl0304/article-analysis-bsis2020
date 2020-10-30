@@ -147,7 +147,7 @@ class DongaScraper(Scraper):
         num = 0  # 찾은 기사 수
         for page in range(0, (number_of_articles // ARTICLES_PER_PAGE) + 1):
             self.driver.get(
-                f'https://www.donga.com/news/search?p={1+page*ARTICLES_PER_PAGE}&query={query_word}&check_news=1&more=1&sorting=1&search_date=1&v1=&v2=&range=1')
+                f'https://www.donga.com/news/search?p={1+page*ARTICLES_PER_PAGE}&query={query_word}&check_news=1&more=1&sorting=1&search_date=1&v1=&v2=&range=2')
 
             WebDriverWait(self.driver, 10).until(expected_conditions.presence_of_element_located((
                 By.CSS_SELECTOR, '#content > div.searchContWrap > div.searchCont > div.searchList > div.t > p.tit > a')))
