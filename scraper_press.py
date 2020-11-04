@@ -74,28 +74,33 @@ class JoongangScraper(Scraper):
 
         num = 0  # 찾은 기사 수
         for page in range(1, (number_of_articles // ARTICLES_PER_PAGE) + 2):
-
+            # 중앙일보 웹 서버로 HTTP GET
+            # 상세 검색 기능도 함께 이용하여 IncludeKeyword에 명시된 키워드를 포함하는 기사만 검색
             soup = Scraper._get_soup(
                 Scraper._request_get(
                     f'https://news.joins.com/search/JoongangNews?page={page}&Keyword={query_word}&SortType=New&SearchCategoryType=JoongangNews&IncludeKeyword={detail_word}')
                 .text)
-            # 중앙일보 웹 서버로 HTTP GET
-            # 상세 검색 기능도 함께 이용하여 IncludeKeyword에 명시된 키워드를 포함하는 기사만 검색
+            
 
+            # 검색 결과의 제목과 사이트 주소가 포함되어 있는 부분의 css selector. 이 실렉터로 해당 데이터 가져옴
+            # # 리스트 형식으로 여러개 반환
             link_elements = soup.select(
                 '#content > div.section_news > div.bd > ul > li > div > h2 > a')
-            # 검색 결과의 제목과 사이트 주소가 포함되어 있는 부분의 css selector. 이 실렉터로 해당 데이터 가져옴
-            # 리스트 형식으로 여러개 반환
+            
+            
             # 검색 결과가 여러 개(중앙일보 사이트는 10개)인 경우 리스트 요소들로부터 하나씩 불러와서 작업하기 위한 반복문
-
             for element in link_elements:
+                # 목표 기사 수 도달
                 if num >= number_of_articles:
                     break
+
+                # 기사 정보 딕셔너리
                 article = {'url': element.get(
                     "href"), 'title': Scraper._clean_text(element.get_text())}
                 
                 num += 1
                 yield article
+
 
     def scrap_articles(self, article_url):
 
@@ -128,31 +133,30 @@ class DongaScraper(Scraper):
     """
 
     def __init__(self, path_chromedriver):
-        self.path_chromedriver = path_chromedriver
+        # Selenium 설정
+        """ options = webdriver.ChromeOptions()  # Chromedriver 옵션
+        options.add_argument('headless')  # 헤드리스(GUI 없음) 모드
+        options.add_argument('window-size=1920x1080')
+        options.add_argument("disable-gpu")
+        options.add_argument("--log-level=3")
+        self.driver = webdriver.Chrome(
+            path_chromedriver, chrome_options=options) """
 
     def collect_articles(self, number_of_articles, query_word, detail_word):
         # 기사 링크만 필터링
         ARTICLE_HREF_FILTER = re.compile(r'.+/news/article/.+')
         ARTICLES_PER_PAGE = 15  # 페이지당 기사 수
 
-        # Selenium 설정
-        options = webdriver.ChromeOptions()  # Chromedriver 옵션
-        options.add_argument('headless')  # 헤드리스(GUI 없음) 모드
-        options.add_argument('window-size=1920x1080')
-        options.add_argument("disable-gpu")
-        options.add_argument("--log-level=3")
-        self.driver = webdriver.Chrome(
-            self.path_chromedriver, chrome_options=options)
-
         num = 0  # 찾은 기사 수
         for page in range(0, (number_of_articles // ARTICLES_PER_PAGE) + 1):
-            self.driver.get(
-                f'https://www.donga.com/news/search?p={1+page*ARTICLES_PER_PAGE}&query={query_word}&check_news=1&more=1&sorting=1&search_date=1&v1=&v2=&range=2')
+            #self.driver.get(
+            #    f'https://www.donga.com/news/search?p={1+page*ARTICLES_PER_PAGE}&query={query_word}&check_news=1&more=1&sorting=1&search_date=1&v1=&v2=&range=2')
 
-            WebDriverWait(self.driver, 10).until(expected_conditions.presence_of_element_located((
-                By.CSS_SELECTOR, '#content > div.searchContWrap > div.searchCont > div.searchList > div.t > p.tit > a')))
+            #WebDriverWait(self.driver, 10).until(expected_conditions.presence_of_element_located((
+            #    By.CSS_SELECTOR, '#content > div.searchContWrap > div.searchCont > div.searchList > div.t > p.tit > a')))
 
-            soup = Scraper._get_soup(self.driver.page_source)
+            source = Scraper._request_get(f'https://news.donga.com/search?p={1+page*ARTICLES_PER_PAGE}&query={query_word}&check_news=1&more=1&sorting=1&search_date=1&v1=&v2=&range=2').text
+            soup = Scraper._get_soup(source)
 
             link_elements = soup.select(
                 '#content > div.searchContWrap > div.searchCont > div.searchList > div.t > p.tit > a')  # 검색 결과의 제목과 사이트 주소가 포함되어 있는 부분의 css selector.
@@ -161,8 +165,11 @@ class DongaScraper(Scraper):
                 element.get("href")), link_elements))  # 기사 링크만 필터링
 
             for element in link_elements:
+                # 목표 기사 수 도달
                 if num >= number_of_articles:
                     break
+
+                # 기사 정보 딕셔너리
                 article = {'url': element.get(
                     "href"), 'title': Scraper._clean_text(element.get_text())}
                 
@@ -216,7 +223,6 @@ class ChosunScraper(Scraper):
         
         num = 0  # 찾은 기사 수
         for _ in range(number_of_articles // ARTICLES_PER_PAGE + 1):
-            
 
             WebDriverWait(self.driver, 10).until(expected_conditions.presence_of_element_located((
                 By.CSS_SELECTOR, f'#main > div.search-feed > div:nth-child({num+1}) > div')))
@@ -224,6 +230,7 @@ class ChosunScraper(Scraper):
             soup = Scraper._get_soup(self.driver.page_source)
 
             for _ in range(ARTICLES_PER_PAGE): # 한 페이지의 기사 스크랩
+                # 목표 기사 수 도달
                 if num >= number_of_articles:
                     break
 
@@ -233,6 +240,7 @@ class ChosunScraper(Scraper):
                     '> div.story-card-right > div.story-card__headline-container > h3 > a'
                 )
 
+                # 기사 정보 딕셔너리
                 article = {'url': 'https://www.chosun.com' + link_element.get("href"), 
                     'title': Scraper._clean_text(link_element.span.get_text())}
                 

@@ -26,7 +26,7 @@ import traceback # 오류 추적 모듈
 from threading import Thread # 스레드 모듈
 from queue import Queue # 작업 공유용 큐
 
-from press_scraper import JoongangScraper, DongaScraper, ChosunScraper  # 링크 스크래퍼 클래스
+from scraper_press import JoongangScraper, DongaScraper, ChosunScraper  # 링크 스크래퍼 클래스
 from scraper_thread import CollectThread, ScrapThread
 
 
@@ -34,7 +34,7 @@ def print_help(exit_code):
     """
     커맨드라인 도움말
     """
-    print(inspect.cleandoc('''사용법: [-h] [-p <press>] [-c -n <number> -q <query> -d <detail>]
+    print(inspect.cleandoc('''사용법: [-h] [-p <press>] [-c -n <number> -q <query> -d <detail> -i <number_ignore>]
                                       [-s -o <output>] [-l <list>]
                               -h --help: 도움말
                               -p --press [언론] [joongang | donga | chosun]
@@ -42,6 +42,7 @@ def print_help(exit_code):
                                   -n --number [찾을 기사 수]
                                   -q --query [주 검색어]
                                   -d --detail (부가 포함 검색어)
+                                  -i --ignore (처음부터 무시할 기사 수)
                                   -l --list   (저장할 파일명)
 
                               -s --scrap 기사 내용 스크랩
@@ -61,6 +62,7 @@ def main(argv):
     number_of_articles = None  # 찾을 기사 수
     query_word = None  # 주 검색어
     detail_word = ''  # 부 검색어
+    number_to_ignore = 0
 
     scrap_article = False  # 기사 스크랩 작업
     result_file_name = None  # 결과 파일명
@@ -68,8 +70,8 @@ def main(argv):
     list_file_name = None  # 기사 리스트 파일명
 
     try:  # 명령행 인수 파싱
-        opts, _ = getopt.getopt(argv, 'hp:cn:q:d:sr:l:', [
-            'help', 'press=', 'collect', 'number=', 'query=', 'detail=', 'scrap', 'result=', 'list='])
+        opts, _ = getopt.getopt(argv, 'hp:cn:q:d:i:sr:l:', [
+            'help', 'press=', 'collect', 'number=', 'query=', 'detail=', 'ignore=', 'scrap', 'result=', 'list='])
 
     except getopt.GetoptError as error:  # 오류 발생 (잘못된 입력)
         print(error)
@@ -91,6 +93,8 @@ def main(argv):
             query_word = arg
         elif opt in ('-d', '--detail'):  # 부 검색어
             detail_word = arg
+        elif opt in ('-i', '--ignore'): # 무시할 기사 수
+            number_to_ignore = int(arg)
         elif opt in ('-s', '--scrap'):  # 기사 내용 스크랩
             scrap_article = True
         elif opt in ('-r', '--result'):  # 결과 파일명
@@ -137,7 +141,7 @@ def main(argv):
     if collect_article is True and scrap_article is True:
         try:
             list_queue = Queue()
-            collect_thread = CollectThread(scraper, number_of_articles, query_word, detail_word, list_queue, list_file_name)
+            collect_thread = CollectThread(scraper, number_of_articles, query_word, detail_word, number_to_ignore, list_queue, list_file_name)
             scrap_thread = ScrapThread(scraper, number_of_articles, list_queue, result_file_name)
 
             collect_thread.start()
@@ -148,8 +152,11 @@ def main(argv):
 
             print("Process Completed")
 
+        except KeyboardInterrupt:
+            print('Collection Aborted by KeyboardInterrupt')
         except:
             print("Process error")
+            traceback.print_exc()
         
 
 
@@ -161,14 +168,23 @@ def main(argv):
             with open(list_file_name, 'w', encoding='utf8') as file_list:
                 file_list.write('"url", "title"\n')
 
-                num = 1 # 횟수 카운터
-                for article in scraper.collect_articles(number_of_articles, query_word, detail_word):
+                num = 0 # 횟수 카운터
+                skip = number_to_ignore # 무시할 기사 수
+                for article in scraper.collect_articles(number_of_articles + number_to_ignore, query_word, detail_word):
+                    num += 1
+                    
+                    # 기사 무시
+                    if skip > 0:
+                        print(f'Ignoring [{num}] {article["url"]}')
+                        skip -= 1
+                        continue
+
                     #파일에 기록
                     file_list.write(f'{article["url"]}, "{article["title"]}"\n')
                     
                     # 작업 상황 출력
                     print(f'Collecting [{num}] {article["url"]}')
-                    num += 1
+                    
 
         except KeyboardInterrupt:
             print('Collection Aborted by KeyboardInterrupt')
@@ -183,21 +199,20 @@ def main(argv):
         try:
             print('Scrapping Articles')
 
-            with open(result_file_name, 'w', encoding='utf8') as file_result:
+            with open(result_file_name, 'w', encoding='utf8') as file_result, open(list_file_name, 'r', encoding='utf8') as file_list:
+
                 file_result.write('"date", "title", "body"\n')
+                list_reader = csv.DictReader(file_list)
 
-                with open(list_file_name, 'r', encoding='utf8') as file_list:
-                    list_reader = csv.DictReader(file_list)
-
-                    num = 1  # 횟수 카운터
-                    for article in list_reader:
-                        url = article['url']
-                        content = scraper.scrap_articles(url)  # 내용 스크랩
-                        file_result.write(f'"{content["date"]}", "{content["title"]}", "{content["body"]}"\n')  # 파일 작성
-                    
-                        # 작업 상황 출력
-                        print(f'Scraping [{num}] {url}')
-                        num += 1
+                num = 1  # 횟수 카운터
+                for article in list_reader:
+                    url = article['url']
+                    content = scraper.scrap_articles(url)  # 내용 스크랩
+                    file_result.write(f'"{content["date"]}", "{content["title"]}", "{content["body"]}"\n')  # 파일 작성
+                
+                    # 작업 상황 출력
+                    print(f'Scraping [{num}] {url}')
+                    num += 1
 
         except KeyboardInterrupt:
             print('Collection Aborted by KeyboardInterrupt')
