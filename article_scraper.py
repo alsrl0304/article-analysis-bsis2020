@@ -23,11 +23,10 @@ import getopt  # 명령행 인수 파서
 import inspect  # 텍스트 도구
 import csv  # csv 파서
 import traceback # 오류 추적 모듈
+import queue # 작업 공유용 큐
 from threading import Thread # 스레드 모듈
-from queue import Queue # 작업 공유용 큐
 
 from scraper_press import JoongangScraper, DongaScraper, ChosunScraper  # 링크 스크래퍼 클래스
-from scraper_thread import CollectThread, ScrapThread
 
 
 def print_help(exit_code):
@@ -58,16 +57,16 @@ def main(argv):
 
     press = None  # 언론
 
-    collect_article = False  # 기사 수집작업
-    number_of_articles = None  # 찾을 기사 수
-    query_word = None  # 주 검색어
-    detail_word = ''  # 부 검색어
-    number_to_ignore = 0
+    willCollect = False  # 기사 수집작업
+    numToCollect = None  # 찾을 기사 수
+    queryWord = None  # 주 검색어
+    detailWord = ''  # 부 검색어
+    numToIgnore = 0
 
-    scrap_article = False  # 기사 스크랩 작업
-    result_file_name = None  # 결과 파일명
+    willScrap = False  # 기사 스크랩 작업
+    resultFileName = None  # 결과 파일명
 
-    list_file_name = None  # 기사 리스트 파일명
+    listFileName = None  # 기사 리스트 파일명
 
     try:  # 명령행 인수 파싱
         opts, _ = getopt.getopt(argv, 'hp:cn:q:d:i:sr:l:', [
@@ -86,106 +85,92 @@ def main(argv):
             else:
                 print_help(1)
         elif opt in ('-c', '--collect'):  # 기사 목록 수집
-            collect_article = True
+            willCollect = True
         elif opt in ('-n', '--number'):  # 기사 수
-            number_of_articles = int(arg)
+            numToCollect = int(arg)
         elif opt in ('-q', '--query'):  # 주 검색어
-            query_word = arg
+            queryWord = arg
         elif opt in ('-d', '--detail'):  # 부 검색어
-            detail_word = arg
+            detailWord = arg
         elif opt in ('-i', '--ignore'): # 무시할 기사 수
-            number_to_ignore = int(arg)
+            numToIgnore = int(arg)
         elif opt in ('-s', '--scrap'):  # 기사 내용 스크랩
-            scrap_article = True
+            willScrap = True
         elif opt in ('-r', '--result'):  # 결과 파일명
-            result_file_name = arg
+            resultFileName = arg
         elif opt in ('-l', '--list'):  # 리스트 파일명
-            list_file_name = arg
+            listFileName = arg
         else:
             print_help(1)
 
     # 옵션 확인
-    if collect_article is True:
-        if (number_of_articles is None) or (query_word is None):  # 기사 수, 주 검색어 입력 안함
+    if willCollect is True:
+        if (numToCollect is None) or (queryWord is None):  # 기사 수, 주 검색어 입력 안함
             print_help(1)
 
-    if scrap_article is True:
-        if (collect_article is False) and (list_file_name is None):  # 수집 작업 없이 리스트 파일 입력 안함
+    if willScrap is True:
+        if (willCollect is False) and (listFileName is None):  # 수집 작업 없이 리스트 파일 입력 안함
             print_help(1)
 
-    if (collect_article is False) and (scrap_article is False):  # 작업 선택 안함
+    if (willCollect is False) and (willScrap is False):  # 작업 선택 안함
         print_help(1)
 
         
-    if list_file_name is None:  # 리스트 파일 이름 기본값
-        list_file_name = f'articles_list_{datetime.datetime.now().strftime("%Y-%m-%d")}_{press}_{query_word or ""}_{detail_word}.csv'
-    if result_file_name is None:  # 기본 출력 파일명 지정
-                result_file_name = f'articles_scrap_{datetime.datetime.now().strftime("%Y-%m-%d")}_{press}_{query_word or ""}_{detail_word}.csv'
+    if listFileName is None:  # 리스트 파일 이름 기본값
+        listFileName = f'articles_list_{datetime.datetime.now().strftime("%Y-%m-%d")}_{press}_{queryWord or ""}_{detailWord}.csv'
+    if resultFileName is None:  # 기본 출력 파일명 지정
+                resultFileName = f'articles_scrap_{datetime.datetime.now().strftime("%Y-%m-%d")}_{press}_{queryWord or ""}_{detailWord}.csv'
 
     # 작업 진행
 
     # 스크래퍼 선택
 
-    chromedriver_path = './chromedriver'
+    chromedriverPath = './chromedriver'
 
     if press == 'joongang':
         scraper = JoongangScraper()
     elif press == 'donga':
-        scraper = DongaScraper(chromedriver_path)
+        scraper = DongaScraper(chromedriverPath)
     elif press == 'chosun':
-        scraper = ChosunScraper(chromedriver_path)
+        scraper = ChosunScraper(chromedriverPath)
     else:
         print_help(1)
 
 
-    if collect_article is True and scrap_article is True:
+    if willCollect is True and willScrap is True:
         try:
-            list_queue = Queue()
-            collect_thread = CollectThread(scraper, number_of_articles, query_word, detail_word, number_to_ignore, list_queue, list_file_name)
-            scrap_thread = ScrapThread(scraper, number_of_articles, list_queue, result_file_name)
+            with open(listFileName, 'w', encoding='utf8') as listFile, \
+                open(resultFileName, 'w', encoding='utf8') as resultFile:
 
-            collect_thread.start()
-            scrap_thread.start()
+                listQueue = queue.Queue()
+                collectThread = Thread(target=collect, args=(
+                    scraper, numToCollect, numToIgnore, queryWord, detailWord, listFile,
+                    lambda article: listQueue.put(article) 
+                ))
+                scrapThread = Thread(target=scrap, args=(
+                    scraper, resultFile, 
+                    iter(listQueue.get), numToCollect
+                ))
 
-            collect_thread.join()
-            scrap_thread.join()
+                collectThread.start()
+                scrapThread.start()
+
+                collectThread.join()
+                scrapThread.join()
 
             print("Process Completed")
 
         except KeyboardInterrupt:
-            print('Collection Aborted by KeyboardInterrupt')
+            print('Process Aborted by KeyboardInterrupt')
         except:
             print("Process error")
             traceback.print_exc()
         
 
-
-    
-    elif collect_article is True:  # 기사 수집만 진행
+    elif willCollect is True:  # 기사 수집만 진행
         try:
-            print('Collecting Articles')
-
-            with open(list_file_name, 'w', encoding='utf8') as file_list:
-                file_list.write('"url", "title"\n')
-
-                num = 0 # 횟수 카운터
-                skip = number_to_ignore # 무시할 기사 수
-                for article in scraper.collect_articles(number_of_articles + number_to_ignore, query_word, detail_word):
-                    num += 1
-                    
-                    # 기사 무시
-                    if skip > 0:
-                        print(f'Ignoring [{num}] {article["url"]}')
-                        skip -= 1
-                        continue
-
-                    #파일에 기록
-                    file_list.write(f'{article["url"]}, "{article["title"]}"\n')
-                    
-                    # 작업 상황 출력
-                    print(f'Collecting [{num}] {article["url"]}')
-                    
-
+            with open(listFileName, 'w', encoding='utf8') as listFile:
+                collect(scraper, numToCollect, numToIgnore, queryWord, detailWord, listFile)
         except KeyboardInterrupt:
             print('Collection Aborted by KeyboardInterrupt')
         except:
@@ -195,32 +180,64 @@ def main(argv):
             sys.exit(1)
         
 
-    elif scrap_article is True:  # 기사 스크랩만 진행
+    elif willScrap is True:  # 기사 스크랩만 진행
         try:
-            print('Scrapping Articles')
-
-            with open(result_file_name, 'w', encoding='utf8') as file_result, open(list_file_name, 'r', encoding='utf8') as file_list:
-
-                file_result.write('"date", "title", "body"\n')
-                list_reader = csv.DictReader(file_list)
-
-                num = 1  # 횟수 카운터
-                for article in list_reader:
-                    url = article['url']
-                    content = scraper.scrap_articles(url)  # 내용 스크랩
-                    file_result.write(f'"{content["date"]}", "{content["title"]}", "{content["body"]}"\n')  # 파일 작성
-                
-                    # 작업 상황 출력
-                    print(f'Scraping [{num}] {url}')
-                    num += 1
-
+            with open(listFileName, 'r', encoding='utf8') as listFile, \
+                open(resultFileName, 'w', encoding='utf8') as resultFile:
+                listReader = csv.DictReader(listFile)
+                scrap(scraper, resultFile, listReader)
+    
         except KeyboardInterrupt:
-            print('Collection Aborted by KeyboardInterrupt')
+            print('Scraping Aborted by KeyboardInterrupt')
         except:
             print('Scraping Failed')
             traceback.print_exc()
 
             sys.exit(1)
+
+
+def collect(scraper, numToCollect, numToIgnore, queryWord, detailWord, listFile, methodToSave = None):
+    print('Collecting Articles')
+    listFile.write('"url", "title"\n')
+
+    num = 0 # 횟수 카운터
+    skip = numToIgnore # 무시할 기사 수
+    for article in scraper.collect_articles(numToCollect + numToIgnore, queryWord, detailWord):
+        num += 1
+        
+        # 기사 무시
+        if skip > 0:
+            print(f'Ignoring [{num}] {article["url"]}')
+            skip -= 1
+            continue
+
+        # 저장
+        listFile.write(f'{article["url"]}, "{article["title"]}"\n')
+        if methodToSave is not None:
+            methodToSave(article)
+        
+        # 작업 상황 출력
+        print(f'Collecting [{num}] {article["url"]}')
+
+def scrap(scraper, resultFile, articleSource, countToScrap=None):
+    print('Scraping Articles')
+    resultFile.write('"date", "title", "body"\n')
+
+    num = 1  # 횟수 카운터
+    for article in articleSource:
+        if countToScrap is not None and num > countToScrap:
+            break
+
+        url = article['url']
+        content = scraper.scrap_articles(url)  # 내용 스크랩
+
+        # 저장
+        resultFile.write(f'"{content["date"]}", "{content["title"]}", "{content["body"]}"\n')
+
+        # 작업 상황 출력
+        print(f'Scraping [{num}] {url}')
+        num += 1
+                    
 
 
 if __name__ == '__main__':
