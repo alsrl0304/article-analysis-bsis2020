@@ -140,7 +140,7 @@ class DongaScraper(Scraper):
         options.add_argument("disable-gpu")
         options.add_argument("--log-level=3")
         self.driver = webdriver.Chrome(
-            path_chromedriver, chrome_options=options)
+            chromedriverPath, chrome_options=options)
 
     def collectArticles(self, numToCollect, queryWord, detailWord):
         # 기사 링크만 필터링
