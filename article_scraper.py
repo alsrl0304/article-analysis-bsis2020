@@ -1,4 +1,4 @@
-###################################################################################
+##################################################################################################
 # 특정 언론사 웹 페이지에서 기사 목록(링크)를 스크랩함
 # 한 줄에 하나씩 (링크), (제목) 형식으로 기록함
 #
@@ -15,7 +15,7 @@
 #     -l --list   (기사 목록 파일명)
 #     -r --result [출력 파일명]
 #
-##################################################################################
+##################################################################################################
 
 import sys  # 시스템 모듈
 import datetime  # 시각 모듈
@@ -117,9 +117,9 @@ def main(argv):
 
         
     if listFileName is None:  # 리스트 파일 이름 기본값
-        listFileName = f'articles_list_{datetime.datetime.now().strftime("%Y-%m-%d")}_{press}_{queryWord or ""}_{detailWord}.csv'
+        listFileName = f'articles_list_{datetime.datetime.now().strftime("%Y-%m-%d")}_{press}_{queryWord or ""}_{detailWord or ""}.csv'
     if resultFileName is None:  # 기본 출력 파일명 지정
-                resultFileName = f'articles_scrap_{datetime.datetime.now().strftime("%Y-%m-%d")}_{press}_{queryWord or ""}_{detailWord}.csv'
+                resultFileName = f'articles_scrap_{datetime.datetime.now().strftime("%Y-%m-%d")}_{press}_{queryWord or ""}_{detailWord or ""}.csv'
 
     # 작업 진행
 
@@ -142,19 +142,27 @@ def main(argv):
             with open(listFileName, 'w', encoding='utf8') as listFile, \
                 open(resultFileName, 'w', encoding='utf8') as resultFile:
 
-                listQueue = queue.Queue()
+                # 큐 제너레이터 함수
+                def enqueueIter(queue, num):
+                    for i in range(num):
+                        yield queue.get()
+
+                # 작업 큐 및 스레드 생성
+                listQueue = queue.Queue() # 작업 큐
                 collectThread = Thread(target=collect, args=(
                     scraper, numToCollect, numToIgnore, queryWord, detailWord, listFile,
-                    lambda article: listQueue.put(article) 
+                    listQueue.put
                 ))
                 scrapThread = Thread(target=scrap, args=(
                     scraper, resultFile, 
-                    iter(listQueue.get), numToCollect
+                    enqueueIter(listQueue, numToCollect)
                 ))
 
+                # 스레드 시작
                 collectThread.start()
                 scrapThread.start()
 
+                # 스레드 작업 종료될 때 까지 대기
                 collectThread.join()
                 scrapThread.join()
 
@@ -165,6 +173,7 @@ def main(argv):
         except:
             print("Process error")
             traceback.print_exc()
+            sys.exit(1)
         
 
     elif willCollect is True:  # 기사 수집만 진행
@@ -176,7 +185,6 @@ def main(argv):
         except:
             print('Collection Failed')
             traceback.print_exc()
-
             sys.exit(1)
         
 
@@ -192,7 +200,6 @@ def main(argv):
         except:
             print('Scraping Failed')
             traceback.print_exc()
-
             sys.exit(1)
 
 
@@ -202,7 +209,7 @@ def collect(scraper, numToCollect, numToIgnore, queryWord, detailWord, listFile,
 
     num = 0 # 횟수 카운터
     skip = numToIgnore # 무시할 기사 수
-    for article in scraper.collect_articles(numToCollect + numToIgnore, queryWord, detailWord):
+    for article in scraper.collectArticles(numToCollect + numToIgnore, queryWord, detailWord):
         num += 1
         
         # 기사 무시
@@ -219,17 +226,16 @@ def collect(scraper, numToCollect, numToIgnore, queryWord, detailWord, listFile,
         # 작업 상황 출력
         print(f'Collecting [{num}] {article["url"]}')
 
-def scrap(scraper, resultFile, articleSource, countToScrap=None):
+    print('Collecting Completed')
+
+def scrap(scraper, resultFile, articleSource):
     print('Scraping Articles')
     resultFile.write('"date", "title", "body"\n')
 
     num = 1  # 횟수 카운터
     for article in articleSource:
-        if countToScrap is not None and num > countToScrap:
-            break
-
         url = article['url']
-        content = scraper.scrap_articles(url)  # 내용 스크랩
+        content = scraper.scrapArticles(url)  # 내용 스크랩
 
         # 저장
         resultFile.write(f'"{content["date"]}", "{content["title"]}", "{content["body"]}"\n')
@@ -237,8 +243,10 @@ def scrap(scraper, resultFile, articleSource, countToScrap=None):
         # 작업 상황 출력
         print(f'Scraping [{num}] {url}')
         num += 1
-                    
 
+    print('Scraping Completed')
+                    
 
 if __name__ == '__main__':
     main(sys.argv[1:])
+
