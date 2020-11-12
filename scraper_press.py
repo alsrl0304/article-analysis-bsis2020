@@ -10,7 +10,7 @@ from functools import reduce  # 고차함수
 import requests  # HTTP REQUEST를 위한 모듈
 from bs4 import BeautifulSoup  # HTML 분석기
 
-import json # JSON(Javascript Object Notation) 파서
+import json # JSON(Javascript Object Notation) 도구
 
 # 브라우저 자동화 도구
 from selenium import webdriver
@@ -218,53 +218,35 @@ class ChosunScraper(Scraper):
 
 
     def collectArticles(self, numToCollect, queryWord, detailWord):
-        # TODO: API 사용
         ARTICLES_PER_PAGE = 10  # 페이지당 기사 수
-
-        #self.driver.get(f'https://www.chosun.com/nsearch/?query={queryWord}&siteid=www&sort=1&date_period=all&writer=&field=&emd_word={detailWord}&expt_word=&opt_chk=false')
         
         num = 0  # 찾은 기사 수
         for page in range(numToCollect // ARTICLES_PER_PAGE + 1):
-            query = requests.utils.quote(r'{"date_period":"all","emd_word":"'
-                + detailWord + r'","encodeURI":"true","expt_word":"","field":"","page":'
-                + page + r'"query":"' 
-                + queryWord + r'","siteid":"www","sort":"1","writer":""}')
 
+            # 조선일보 API 질의 문자열
+            query = json.dumps({
+                'emd_word': requests.utils.quote(detailWord),
+                'query': requests.utils.quote(queryWord),
+                'page': page,
+                'date_period': 'all',
+                'encodeURI': 'true','expt_word': '','field':'',
+                'siteid':'www','sort':'1','writer':''
+            }, ensure_ascii=False, separators=(',',':'))
+                        
+            # 조선일보 API 질의 결과
             data = requests.get(f'https://www.chosun.com/pf/api/v3/content/fetch/search-param-api?query={query}&d=301&_website=chosun').json()
 
             for element in data["content_elements"]:
-                article = {'url': element["arc_url"], 'title': element["title"]}
-                yield article
-                num += 1
-
-        '''
-        for _ in range(numToCollect // ARTICLES_PER_PAGE + 1):
-            WebDriverWait(self.driver, 10).until(expected_conditions.presence_of_element_located((
-                By.CSS_SELECTOR, f'#main > div.search-feed > div:nth-child({num+1}) > div')))
-
-            soup = Scraper._getSoup(self.driver.page_source)
-            
-            for _ in range(ARTICLES_PER_PAGE): # 한 페이지의 기사 스크랩
-                # 목표 기사 수 도달
                 if num >= numToCollect:
                     break
 
-                # 검색 결과의 제목과 사이트 주소가 포함되어 있는 부분의 css class
-                link_element = soup.select_one(
-                    f'#main > div.search-feed > div:nth-child({num+1}) > div > div.story-card'
-                    '> div.story-card-right > div.story-card__headline-container > h3 > a'
-                )
+                article = {
+                    'url': 'https://chosun.com'+ element["arc_url"], 
+                    'title': Scraper._cleanText(element["title"])
+                }
 
-                # 기사 정보 딕셔너리
-                article = {'url': 'https://www.chosun.com' + link_element.get("href"), 
-                    'title': Scraper._cleanText(link_element.span.get_text())}
-                
-                
                 yield article
-                num += 1
-            
-            self.driver.find_element_by_css_selector('#load-more-stories').click()
-        '''
+                num += 1    
 
 
     def scrapArticles(self, article_url):
@@ -272,6 +254,14 @@ class ChosunScraper(Scraper):
         # TODO: 성능 개선 - 이 셀렉터 (스크립트) 아래 있는  JSON 객체 이용하기.
         # body > script:nth-child(4) <script type="application/javascript"/>
 
+        soup = Scraper._getSoup(Scraper._requestGet(article_url).text)
+        data = soup.select_one('body > script:nth-child(4)')
+
+        
+        
+        
+
+        '''
         self.driver.get(article_url)
 
         WebDriverWait(self.driver, 10).until(expected_conditions.presence_of_element_located((
@@ -302,6 +292,7 @@ class ChosunScraper(Scraper):
 
         # {'date': (날짜), 'title': (제목), 'body': (내용)} 딕셔너리로 반환
         return {'date': date, 'title': title, 'body': body}
+        '''
 
     
 
