@@ -132,7 +132,7 @@ def main(argv):
     elif press == 'donga':
         scraper = DongaScraper(chromedriverPath)
     elif press == 'chosun':
-        scraper = ChosunScraper(chromedriverPath)
+        scraper = ChosunScraper()
     else:
         print_help(1)
 
@@ -144,7 +144,7 @@ def main(argv):
 
                 # 큐 제너레이터 함수
                 def enqueueIter(queue, num):
-                    for i in range(num):
+                    for _ in range(num):
                         yield queue.get()
 
                 # 작업 큐 및 스레드 생성
@@ -205,6 +205,8 @@ def main(argv):
 
 def collect(scraper, numToCollect, numToIgnore, queryWord, detailWord, listFile, methodToSave = None):
     print('Collecting Articles')
+
+    
     listFile.write('"url", "title"\n')
 
     num = 0 # 횟수 카운터
@@ -232,8 +234,10 @@ def scrap(scraper, resultFile, articleSource):
     print('Scraping Articles')
     resultFile.write('"date", "title", "body"\n')
 
-    num = 1  # 횟수 카운터
+    num = 0  # 횟수 카운터
     for article in articleSource:
+        num += 1
+
         url = article['url']
         content = scraper.scrapArticles(url)  # 내용 스크랩
 
@@ -242,7 +246,6 @@ def scrap(scraper, resultFile, articleSource):
 
         # 작업 상황 출력
         print(f'Scraping [{num}] {url}')
-        num += 1
 
     print('Scraping Completed')
                     

@@ -206,16 +206,7 @@ class ChosunScraper(Scraper):
     조선일보용 스크래퍼
     """
 
-    def __init__(self, path_chromedriver):
-        # Selenium 설정
-        options = webdriver.ChromeOptions()  # Chromedriver 옵션
-        options.add_argument('headless')  # 헤드리스(GUI 없음) 모드
-        options.add_argument('window-size=1920x1080')
-        options.add_argument("disable-gpu")
-        options.add_argument("--log-level=3")
-        self.driver = webdriver.Chrome(
-            path_chromedriver, chrome_options=options)
-
+    REGEX_SCRIPT = r'^.*Fusion.globalContent=(.+);Fusion.globalContentConfig.*'
 
     def collectArticles(self, numToCollect, queryWord, detailWord):
         ARTICLES_PER_PAGE = 10  # 페이지당 기사 수
@@ -241,7 +232,7 @@ class ChosunScraper(Scraper):
                     break
 
                 article = {
-                    'url': 'https://chosun.com'+ element["arc_url"], 
+                    'url': 'https://www.chosun.com'+ element["arc_url"], 
                     'title': Scraper._cleanText(element["title"])
                 }
 
@@ -250,49 +241,28 @@ class ChosunScraper(Scraper):
 
 
     def scrapArticles(self, article_url):
-        
-        # TODO: 성능 개선 - 이 셀렉터 (스크립트) 아래 있는  JSON 객체 이용하기.
-        # body > script:nth-child(4) <script type="application/javascript"/>
-
         soup = Scraper._getSoup(Scraper._requestGet(article_url).text)
-        data = soup.select_one('body > script:nth-child(4)')
-
         
+        # 정보가 담긴 스크립트 분리
+        scriptTag = soup.body.find('script', {'type': 'application/javascript', 'id': None})
+        json_string = re.search(ChosunScraper.REGEX_SCRIPT, scriptTag.text).group(1)
+
+        # JSON 파싱, 딕셔너리로 반환받음
+        data = json.loads(json_string)
+
+        date = Scraper._extractDate(data['created_date'])
+        title = Scraper._cleanText(data['headlines']['basic'])
+        body = reduce(lambda x, y: x+y, 
+            map(
+                lambda texts: Scraper._cleanText(texts['content']),
+                filter(
+                    lambda element: element['type'] == 'text',
+                    data['content_elements']
+                )
+            )
+        )
         
-        
-
-        '''
-        self.driver.get(article_url)
-
-        WebDriverWait(self.driver, 10).until(expected_conditions.presence_of_element_located((
-                By.CSS_SELECTOR, '#fusion-app > div.article > div:nth-child(2)')))
-
-        soup = Scraper._getSoup(self.driver.page_source)
-
-        # 기사 날짜 추출
-        date_element = soup.select(
-            '#fusion-app > div.article > div:nth-child(2) > div'
-            '> section > article > div.article-dateline > span')[0]  # 최초 일자 요소 (최종 수정일자는 [1]번째 요소)
-        date = Scraper._extractDate(
-            date_element.get_text())  # 정규식으로 날짜만 얻어옴
-
-        # 기사 제목 추출
-        title_element = soup.select_one(
-            '#fusion-app > div.article > div:nth-child(2) > div'
-            '> div > div.article-header__headline-container > h1 > span') # 기사 제목 요소 추출. 하나임
-        title = Scraper._cleanText(title_element.get_text())
-
-        # 기사 본문 추출하는 부분
-        body_elements = soup.select(
-            '#fusion-app > div.article > div:nth-child(2) > div > section > article > section > p')  # 기사 내용 요소 추출, 여러개일 수 있음
-
-        body = ""
-        for body_element in body_elements:
-            body += Scraper._cleanText(body_element.get_text())
-
-        # {'date': (날짜), 'title': (제목), 'body': (내용)} 딕셔너리로 반환
         return {'date': date, 'title': title, 'body': body}
-        '''
 
     
 
