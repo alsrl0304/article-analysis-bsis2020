@@ -13,7 +13,7 @@ Article Analysis RnE Project for Busanil Science High School, 2020 <br>
 ## 사용법 
 scrap_articles.py [-h] [-p <press>] [-c -n <number> -q <query> -d <detail> -i <number_ignore>] [-s -o <output>] [-l <list>] <br>                                                   
 - -h --help: 도움말 <br>
-- -p --press [언론] [joongang | donga] <br>
+- -p --press [언론] [joongang | donga | chosun] <br>
 - -c --collect: 기사 목록 검색 <br>
     - -n --number [찾을 기사 수] <br>
     - -q --query [주 검색어] <br>
