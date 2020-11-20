@@ -3,7 +3,9 @@
 #####################################################
 
 # CRAN 미러 선택
-chooseCRANmirror(graphics=FALSE, ind=48) # 부경대 미러
+chooseCRANmirror(graphics=FALSE, ind=48) # 부경대 미러 (48)
+
+install.packages("getopt")
 
 install.packages("rJava")
 install.packages("rmarkdown")
@@ -29,11 +31,6 @@ install.packages('Rcpp')       #Rcpp 패키지
 install.packages('slam')       #slam 패키지
 install.packages('rlang')      #rlang 패키지
 install.packages('vctrs')      #vctrs 패키지
-
-# JAVA DEVELOPMENT KIT 없으면 설치
-if(!is.null(Sys.getenv("JAVA_HOME"))) {
-    install_jdk()
-}
 
 install.packages("multilinguer")
 library(multilinguer)
