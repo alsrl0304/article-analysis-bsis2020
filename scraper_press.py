@@ -25,7 +25,7 @@ class Scraper:
     """
 
     CHARACTER_FILTER = re.compile(
-        r'[^ 가-힣|0-9|\[|\]|(|)|-|~|?|!|.|:|;|%]+')  # 특수 문자나 필요없는 문자들을 제외하기 위한 정규식
+        r'[^ 가-힣|0-9|\[|\]|(|)|-|?|!|.|:|;|%]+')  # 특수 문자나 필요없는 문자들을 제외하기 위한 정규식
 
     DATE_REGEX = re.compile(
         r'.*((?:19|20)(?:\d{2}))[-.](0[1-9]|1[0-2])[-.]([012][0-9]|3[01]).*')  # 날짜 검출용 정규식
@@ -245,9 +245,10 @@ class ChosunScraper(Scraper):
         
         # 정보가 담긴 스크립트 분리
         scriptTag = soup.body.find('script', {'type': 'application/javascript', 'id': None})
-        json_string = re.search(ChosunScraper.REGEX_SCRIPT, scriptTag.text).group(1)
+        json_string = re.search(ChosunScraper.REGEX_SCRIPT, scriptTag.string)
+        json_string = json_string.group(1)
 
-        # JSON 파싱, 딕셔너리로 반환받음
+        # JSON 파싱, 딕셔너리로 반환받음    
         data = json.loads(json_string)
 
         date = Scraper._extractDate(data['created_date'])

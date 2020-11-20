@@ -171,7 +171,7 @@ def main(argv):
         except KeyboardInterrupt:
             print('Process Aborted by KeyboardInterrupt')
         except:
-            print("Process error")
+            print("Process Failed")
             traceback.print_exc()
             sys.exit(1)
         
@@ -205,30 +205,39 @@ def main(argv):
 
 def collect(scraper, numToCollect, numToIgnore, queryWord, detailWord, listFile, methodToSave = None):
     print('Collecting Articles')
-
-    
     listFile.write('"url", "title"\n')
 
     num = 0 # 횟수 카운터
     skip = numToIgnore # 무시할 기사 수
-    for article in scraper.collectArticles(numToCollect + numToIgnore, queryWord, detailWord):
-        num += 1
-        
-        # 기사 무시
-        if skip > 0:
-            print(f'Ignoring [{num}] {article["url"]}')
-            skip -= 1
-            continue
 
-        # 저장
-        listFile.write(f'{article["url"]}, "{article["title"]}"\n')
-        if methodToSave is not None:
-            methodToSave(article)
-        
-        # 작업 상황 출력
-        print(f'Collecting [{num}] {article["url"]}')
+    try:
+        for article in scraper.collectArticles(numToCollect + numToIgnore, queryWord, detailWord):
+            num += 1
+            
+            # 기사 무시
+            if skip > 0:
+                print(f'Ignoring [{num}] {article["url"]}')
+                skip -= 1
+                continue
 
-    print('Collecting Completed')
+            # 저장
+            listFile.write(f'{article["url"]}, "{article["title"]}"\n')
+            if methodToSave is not None:
+                methodToSave(article)
+            
+            # 작업 상황 출력
+            print(f'Collecting [{num}] {article["url"]}')
+        
+        print('Collecting Completed')
+
+    except KeyboardInterrupt:
+        raise KeyboardInterrupt
+    except:
+        print(f'Collecting Failed at [{num}]')
+        print(f'Ignore it and Resume...')
+        collect(scraper, numToCollect - num, num, queryWord, detailWord, listFile, methodToSave)
+
+
 
 def scrap(scraper, resultFile, articleSource):
     print('Scraping Articles')
@@ -236,16 +245,24 @@ def scrap(scraper, resultFile, articleSource):
 
     num = 0  # 횟수 카운터
     for article in articleSource:
-        num += 1
+        try:
+            num += 1
 
-        url = article['url']
-        content = scraper.scrapArticles(url)  # 내용 스크랩
+            url = article['url']
+            content = scraper.scrapArticles(url)  # 내용 스크랩
 
-        # 저장
-        resultFile.write(f'"{content["date"]}", "{content["title"]}", "{content["body"]}"\n')
+            # 저장
+            resultFile.write(f'"{content["date"]}", "{content["title"]}", "{content["body"]}"\n')
 
-        # 작업 상황 출력
-        print(f'Scraping [{num}] {url}')
+            # 작업 상황 출력
+            print(f'Scraping [{num}] {url}')
+
+        except KeyboardInterrupt:
+            raise KeyboardInterrupt
+        except:
+            print(f'Scraping Failed [{num}] {url}')
+            print('Ignore it and Resume...')
+            continue
 
     print('Scraping Completed')
                     
