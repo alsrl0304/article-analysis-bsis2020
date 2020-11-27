@@ -67,7 +67,8 @@ def main(argv):
 
     try:  # 명령행 인수 파싱
         opts, _ = getopt.getopt(argv, 'hp:cn:q:d:i:sr:l:', [
-            'help', 'press=', 'collect', 'number=', 'query=', 'detail=', 'ignore=', 'scrap', 'result=', 'list='])
+            'help', 'press=', 'collect', 'number=', 'query=',
+            'detail=', 'ignore=', 'scrap', 'result=', 'list='])
 
     except getopt.GetoptError as error:  # 오류 발생 (잘못된 입력)
         print(error)
@@ -137,21 +138,18 @@ def main(argv):
             with open(list_file_name, 'w', encoding='utf8') as list_file, \
                     open(result_file_name, 'w', encoding='utf8') as result_file:
 
-                # 큐 제너레이터 함수
-                def iter_queue(queue, num):
-                    for _ in range(num):
-                        yield queue.get()
+                list_file.write('"url", "title"\n')
+                result_file.write('"date", "title", "body"\n')
 
                 # 작업 큐 및 스레드 생성
-                list_queue = queue.Queue()  # 작업 큐
+                article_queue = queue.Queue()
                 collect_thread = Thread(target=collect, args=(
                     scraper, collect_count, ignore_count, query_word, detail_word, list_file,
-                    list_queue.put
+                    article_queue.put
                 ))
                 scrap_thread = Thread(target=scrap, args=(
-                    scraper, result_file,
-                    iter_queue(list_queue, collect_count)
-                ))
+                    scraper, result_file, article_queue
+                ), daemon=True)
 
                 # 스레드 시작
                 collect_thread.start()
@@ -159,7 +157,7 @@ def main(argv):
 
                 # 스레드 작업 종료될 때 까지 대기
                 collect_thread.join()
-                scrap_thread.join()
+                article_queue.join()
 
             print("Process Completed")
 
@@ -167,19 +165,22 @@ def main(argv):
             print('Process Aborted by KeyboardInterrupt')
         except:
             print("Process Failed")
-            traceback.print_exc()
+            traceback.print_exc(file=sys.stdout)
             sys.exit(1)
 
     elif will_collect is True:  # 기사 수집만 진행
         try:
             with open(list_file_name, 'w', encoding='utf8') as list_file:
+                list_file.write('"url", "title"\n')
+
                 collect(scraper, collect_count, ignore_count,
                         query_word, detail_word, list_file)
+
         except KeyboardInterrupt:
             print('Collection Aborted by KeyboardInterrupt')
         except:
             print('Collection Failed')
-            traceback.print_exc()
+            traceback.print_exc(file=sys.stdout)
             sys.exit(1)
 
     elif will_scrap is True:  # 기사 스크랩만 진행
@@ -187,34 +188,49 @@ def main(argv):
             with open(list_file_name, 'r', encoding='utf8') as list_file, \
                     open(result_file_name, 'w', encoding='utf8') as result_file:
                 list_reader = csv.DictReader(list_file)
-                scrap(scraper, result_file, list_reader)
+
+                result_file.write('"date", "title", "body"\n')
+
+                # 작업 큐 생성 및 스레드 생성
+                article_queue = queue.Queue()
+
+                def enqueue_list_reader():
+                    for article in list_reader:
+                        article_queue.put(article)
+
+                read_thread = Thread(target=enqueue_list_reader)
+                scrap_thread = Thread(target=scrap, args=(
+                    scraper, result_file, article_queue), daemon=True)
+
+                # 스레드 시작
+                read_thread.start()
+                scrap_thread.start()
+
+                # 스레드 작업 종료까지 대기
+                read_thread.join()
+                article_queue.join()
 
         except KeyboardInterrupt:
             print('Scraping Aborted by KeyboardInterrupt')
         except:
             print('Scraping Failed')
-            traceback.print_exc()
+            traceback.print_exc(file=sys.stdout)
             sys.exit(1)
 
 # 수집 수행
 
 
-def collect(scraper, collect_count, ignore_count, query_word, detail_word, list_file, method_save=None):
+def collect(scraper, collect_count, ignore_count, query_word, detail_word,
+            list_file, method_save=None):
     print('Collecting Articles')
-    list_file.write('"url", "title"\n')
 
-    num = 0  # 횟수 카운터
-    skip = ignore_count  # 무시할 기사 수
+    num = 1  # 기사 카운터
+
+    print(f'Ignoring {ignore_count} Articles...')
 
     try:
-        for article in scraper.collectArticles(collect_count + ignore_count, query_word, detail_word):
-            num += 1
-
-            # 기사 무시
-            if skip > 0:
-                print(f'Ignoring [{num}] {article["url"]}')
-                skip -= 1
-                continue
+        for article in scraper.collect_articles(collect_count, ignore_count,
+                                                query_word, detail_word):
 
             # 저장
             list_file.write(f'{article["url"]}, "{article["title"]}"\n')
@@ -222,44 +238,49 @@ def collect(scraper, collect_count, ignore_count, query_word, detail_word, list_
                 method_save(article)
 
             # 작업 상황 출력
-            print(f'Collecting [{num}] {article["url"]}')
+            print(f'Collected [{num}] {article["url"]}')
+            num += 1
 
         print('Collecting Completed')
 
     except KeyboardInterrupt:
         raise KeyboardInterrupt
     except:
-        print(f'Collecting Failed at [{num}]')
+        print(f'Collecting Failed at [{num}] ')
+        traceback.print_exc(limit=3, file=sys.stdout)
         print('Ignore it and Resume...')
-        collect(scraper, (collect_count - (num - ignore_count)), num, query_word,
+        collect(scraper, collect_count - num - 1, ignore_count + num, query_word,
                 detail_word, list_file, method_save)
 
 # 스크래핑 수행
 
 
-def scrap(scraper, result_file, article_source):
+def scrap(scraper, result_file, article_source_queue):
     print('Scraping Articles')
-    result_file.write('"date", "title", "body"\n')
 
     num = 0  # 횟수 카운터
-    for article in article_source:
+    while True:
         try:
             num += 1
 
+            article = article_source_queue.get()
             url = article['url']
-            content = scraper.scrapArticles(url)  # 내용 스크랩
+            content = scraper.scrap_articles(url)  # 내용 스크랩
 
             # 저장
             result_file.write(
                 f'"{content["date"]}", "{content["title"]}", "{content["body"]}"\n')
 
             # 작업 상황 출력
-            print(f'Scraping [{num}] {url}')
+            print(f'Scraped [{num}] {url}')
+
+            article_source_queue.task_done()
 
         except KeyboardInterrupt:
             raise KeyboardInterrupt
         except:
             print(f'Scraping Failed [{num}] {url}')
+            traceback.print_exc(limit=3, file=sys.stdout)
             print('Ignore it and Resume...')
             continue
 
