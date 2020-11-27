@@ -7,6 +7,8 @@ import sys  # 시스템 모듈
 import re  # 정규표현식
 import json  # JSON(Javascript Object Notation) 도구
 
+import traceback  # 오류 추적 모듈
+
 from functools import reduce  # 고차함수
 
 import requests  # HTTP REQUEST를 위한 모듈
@@ -19,10 +21,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
 
 
+# 기사 스크래퍼를 위한 추상 클래스
 class Scraper:
-    """
-    기사 스크래퍼를 위한 추상 클래스
-    """
 
     CHARACTER_FILTER = re.compile(
         r'[^ 가-힣|0-9|\[|\]|(|)|-|?|!|.|:|;|%]+')  # 특수 문자나 필요없는 문자들을 제외하기 위한 정규식
@@ -54,7 +54,7 @@ class Scraper:
             sys.exit(1)
 
     # {'url': (링크), 'title': (제목)} 딕셔너리를 제너레이터로 반환할것
-    def collect_articles(self, collect_count, query_word, detail_word):
+    def collect_articles(self, collect_count, ignore_count, query_word, detail_word):
         raise NotImplementedError
 
     # {'date': (날짜), 'title': (제목), 'body': (내용)} 딕셔너리로 반환할것
@@ -67,10 +67,17 @@ class JoongangScraper(Scraper):
 
     NUM_ARTICLE_PER_QUERY = 10  # 페이지당 기사 수
 
-    def collect_articles(self, collect_count, query_word, detail_word):
+    def collect_articles(self, collect_count, ignore_count, query_word, detail_word):
+        # 찾은 기사 수
+        num = 0
 
-        num = 0  # 찾은 기사 수
-        for page in range(1, (collect_count // JoongangScraper.NUM_ARTICLE_PER_QUERY) + 2):
+        # 무시한 페이지 수
+        page_ignore = ignore_count // JoongangScraper.NUM_ARTICLE_PER_QUERY
+        # 무시할 기사 수
+        skip = ignore_count - page_ignore * JoongangScraper.NUM_ARTICLE_PER_QUERY
+
+        for page in range(page_ignore + 1,
+                          (collect_count + ignore_count) // JoongangScraper.NUM_ARTICLE_PER_QUERY + 2):
             # 중앙일보 웹 서버로 HTTP GET
             # 상세 검색 기능도 함께 이용하여 IncludeKeyword에 명시된 키워드를 포함하는 기사만 검색
             soup = BeautifulSoup(
@@ -85,16 +92,21 @@ class JoongangScraper(Scraper):
 
             # 검색 결과가 여러 개(중앙일보 사이트는 10개)인 경우 리스트 요소들로부터 하나씩 불러와서 작업하기 위한 반복문
             for element in link_elements:
+                # 기사 무시
+                if skip > 0:
+                    print(f'Ignored Article, {skip} left.')
+                    skip -= 1
+                    continue
+
                 # 목표 기사 수 도달
                 if num >= collect_count:
                     break
 
                 # 기사 정보 딕셔너리
-                article = {'url': element.get(
-                    "href"), 'title': Scraper._clean_text(element.get_text())}
-
-                num += 1
+                article = {'url': element.get("href"),
+                           'title': Scraper._clean_text(element.get_text())}
                 yield article
+                num += 1
 
     def scrap_articles(self, article_url):
 
@@ -139,11 +151,19 @@ class DongaScraper(Scraper):
         self.driver = webdriver.Chrome(
             chromedriver_path, chrome_options=options)
 
-    def collect_articles(self, collect_count, query_word, detail_word):
-        # 기사 링크만 필터링
+    def collect_articles(self, collect_count, ignore_count, query_word, detail_word):
 
-        num = 0  # 찾은 기사 수
-        for page in range(0, (collect_count // DongaScraper.NUM_ARTICLE_PER_QUERY) + 1):
+        # 찾은 기사 수
+        num = 0
+
+        # 무시한 페이지 수
+        page_ignore = ignore_count // JoongangScraper.NUM_ARTICLE_PER_QUERY
+        # 무시할 기사 수
+        skip = ignore_count - page_ignore * JoongangScraper.NUM_ARTICLE_PER_QUERY
+
+        for page in range(page_ignore,
+                          (collect_count+ignore_count) // DongaScraper.NUM_ARTICLE_PER_QUERY + 2):
+
             self.driver.get(
                 f'https://www.donga.com/news/search?p={1+page*DongaScraper.NUM_ARTICLE_PER_QUERY}&query={query_word}&check_news=1&more=1&sorting=1&search_date=1&v1=&v2=&range=2')
 
@@ -159,6 +179,12 @@ class DongaScraper(Scraper):
                 element.get("href")), link_elements))  # 기사 링크만 필터링
 
             for element in link_elements:
+                # 기사 무시
+                if skip > 0:
+                    print(f'Ignored Article, {skip} left.')
+                    skip -= 1
+                    continue
+
                 # 목표 기사 수 도달
                 if num >= collect_count:
                     break
@@ -198,14 +224,22 @@ class DongaScraper(Scraper):
 # 조선일보 스크래퍼
 class ChosunScraper(Scraper):
 
+    # 기사 링크 추출용 정규식
+    ARTICLE_HREF_FILTER = r'.*article.html\?id=\d+'
     # 스크립트 중 정보 추출용 정규식
     DATA_SCRIPT_FILTER = r'^.*Fusion.globalContent=(.+);Fusion.globalContentConfig.*'
     NUM_ARTICLE_PER_QUERY = 10  # 페이지당 기사 수
 
-    def collect_articles(self, collect_count, query_word, detail_word):
+    def collect_articles(self, collect_count, ignore_count, query_word, detail_word):
+        # 찾은 기사 수
+        num = 0
 
-        num = 0  # 찾은 기사 수
-        for page in range(collect_count // ChosunScraper.NUM_ARTICLE_PER_QUERY + 1):
+        # 무시한 페이지 수
+        page_ignore = ignore_count // JoongangScraper.NUM_ARTICLE_PER_QUERY
+        # 무시할 기사 수
+        skip = ignore_count - page_ignore * JoongangScraper.NUM_ARTICLE_PER_QUERY
+
+        for page in range(page_ignore, (collect_count + ignore_count) // ChosunScraper.NUM_ARTICLE_PER_QUERY + 1):
 
             # 조선일보 API 질의 문자열
             query = json.dumps({
@@ -222,11 +256,19 @@ class ChosunScraper(Scraper):
                 f'https://www.chosun.com/pf/api/v3/content/fetch/search-param-api?query={query}&d=301&_website=chosun').json()
 
             for element in data["content_elements"]:
+                # 기사 무시
+                if skip > 0:
+                    print(f'Ignored Article, {skip} left.')
+                    skip -= 1
+                    continue
+
+                # 목표 기사 수 도달
                 if num >= collect_count:
                     break
 
                 article = {
-                    'url': 'https://www.chosun.com' + element["arc_url"],
+                    'url': re.search(ChosunScraper.ARTICLE_HREF_FILTER,
+                                     element["article_view_url"]).group(0),
                     'title': Scraper._clean_text(element["title"])
                 }
 
@@ -237,6 +279,7 @@ class ChosunScraper(Scraper):
         soup = BeautifulSoup(Scraper._request_get(
             article_url).text, 'html.parser')
 
+        """
         # 정보가 담긴 스크립트 분리
         script_element = soup.body.find(
             'script', {'type': 'application/javascript', 'id': None})
@@ -258,5 +301,23 @@ class ChosunScraper(Scraper):
                               lambda element: element['type'] == 'text',
                               data['content_elements']
                           )))
+        """
+
+        # 기사 날짜 추출
+        date_element = soup.select_one(
+            '#wv_wrap_id > div.wv_header > div.wv_header_date')  # 기사 날짜 요소 추출, 하나임
+        date = Scraper._extract_date(
+            date_element.get_text())  # 정규식으로 날짜만 얻어옴
+
+        # 기사 제목 추출
+        title_element = soup.select_one(
+            '#wv_wrap_id > div.wv_header > div.wv_header_title')  # 기사 제목 요소 추출. 하나임
+        title = Scraper._clean_text(title_element.get_text())
+
+        # 기사 본문 추출하는 부분
+        body_element = soup.select_one(
+            '#wv_wrap_id > div.wv_newsbody')  # 기사 내용 요소 추출, 하나임
+
+        body = Scraper._clean_text(body_element.get_text())
 
         return {'date': date, 'title': title, 'body': body}
