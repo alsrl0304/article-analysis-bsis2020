@@ -116,13 +116,13 @@ def main(argv):
     if list_file_name is None:  # 리스트 파일 이름 기본값
         list_file_name = f'articles_list_{press}_' + \
             (f"{query_word}_" if query_word is not None else "") + \
-            (f"_{detail_word}_" if detail_word is not None else "") + \
+            (f"_{detail_word}_" if detail_word != '' else "") + \
             f'{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
 
     if result_file_name is None:  # 기본 출력 파일명 지정
         result_file_name = f'articles_scrap_{press}_' + \
             (f"{query_word}_" if query_word is not None else "") + \
-            (f"_{detail_word}_" if detail_word is not None else "") + \
+            (f"_{detail_word}_" if detail_word != '' else "") + \
             f'{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
 
     # 작업 진행
