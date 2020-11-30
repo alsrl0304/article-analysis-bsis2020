@@ -161,7 +161,7 @@ def main(argv):
                 # 소비자 스레드
                 scrap_thread = Thread(target=scrap, args=(
                     scraper, result_file, article_queue
-                ), daemon=True)
+                ))
 
                 # 스레드 시작
                 collect_thread.start()
@@ -170,6 +170,9 @@ def main(argv):
                 # 스레드 작업 종료될 때 까지 대기
                 collect_thread.join()
                 article_queue.join()
+
+                # 소비자 스레드 종료
+                article_queue.put(None)
 
             print("Process Completed")
 
@@ -216,7 +219,7 @@ def main(argv):
 
                 # 소비자 스레드
                 scrap_thread = Thread(target=scrap, args=(
-                    scraper, result_file, article_queue), daemon=True)
+                    scraper, result_file, article_queue))
 
                 # 스레드 시작
                 read_thread.start()
@@ -225,6 +228,9 @@ def main(argv):
                 # 스레드 작업 종료까지 대기
                 read_thread.join()
                 article_queue.join()
+
+                # 소비자 스레드 종료
+                article_queue.put(None)
 
         except KeyboardInterrupt:
             print('Scraping Aborted by KeyboardInterrupt')
@@ -275,6 +281,9 @@ def scrap(scraper, result_file, article_source_queue):
         try:
             num += 1
             article = article_source_queue.get()
+
+            if article is None:
+                break
 
             url = article['url']
             content = scraper.scrap_articles(url)  # 내용 스크랩
