@@ -2,12 +2,9 @@
 # 특정 언론사 웹 페이지에서 기사 스크랩하는 클래스
 ##########################################################################
 
-
 import sys  # 시스템 모듈
 import re  # 정규표현식
 import json  # JSON(Javascript Object Notation) 도구
-
-import traceback  # 오류 추적 모듈
 
 from functools import reduce  # 고차함수
 
@@ -278,30 +275,6 @@ class ChosunScraper(Scraper):
     def scrap_articles(self, article_url):
         soup = BeautifulSoup(Scraper._request_get(
             article_url).text, 'html.parser')
-
-        """
-        # 정보가 담긴 스크립트 분리
-        script_element = soup.body.find(
-            'script', {'type': 'application/javascript', 'id': None})
-        json_string = re.search(
-            ChosunScraper.DATA_SCRIPT_FILTER, script_element.string)
-        json_string = json_string.group(1)
-
-        # JSON 파싱, 딕셔너리로 반환받음
-        data = json.loads(json_string)
-
-        date = Scraper._extract_date(data['created_date'])  # 기사 날짜 추출
-        title = Scraper._clean_text(data['headlines']['basic'])  # 기사 제목 추출
-
-        # 기사 본문 추출 및 취합
-        body = reduce(lambda x, y: x+y,
-                      map(
-                          lambda texts: Scraper._clean_text(texts['content']),
-                          filter(
-                              lambda element: element['type'] == 'text',
-                              data['content_elements']
-                          )))
-        """
 
         # 기사 날짜 추출
         date_element = soup.select_one(
