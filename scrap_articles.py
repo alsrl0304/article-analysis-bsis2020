@@ -6,15 +6,15 @@
 # -h --help: 도움말
 # -p --press [언론] [joongang | donga]
 # -c --collect: 기사 목록 검색
-#     -q --search [주 검색어]
+#     -q --query [주 검색어]
 #     -d --detail [부가 포함 검색어]
 #     -n --number [찾을 기사 수]
 #     -i --ignore (처음부터 무시할 기사 수)
-#     -l --list   (저장할 파일명)
+#     -l --list-file   (저장할 파일명)
 #
 # -s --scrap 기사 내용 스크랩
-#     -l --list   (기사 목록 파일명)
-#     -r --result (출력 파일명)
+#     -l --list-file   (기사 목록 파일명)
+#     -r --result-file (출력 파일명)
 #
 ##################################################################################################
 
@@ -37,15 +37,15 @@ def print_help(exit_code):
             -h --help: 도움말
             -p --press [언론] [joongang | donga]
             -c --collect: 기사 목록 검색
-                -q --search [주 검색어]
+                -q --query [주 검색어]
                 -d --detail [부가 포함 검색어]
                 -n --number [찾을 기사 수]
                 -i --ignore (처음부터 무시할 기사 수)
-                -l --list   (저장할 파일명)
+                -l --list-file  (저장할 파일명)
 
             -s --scrap 기사 내용 스크랩
-                -l --list   (기사 목록 파일명)
-                -r --result (출력 파일명)'''))
+                -l --list-file   (기사 목록 파일명)
+                -r --result-file (출력 파일명)'''))
     sys.exit(exit_code)
 
 
@@ -68,7 +68,7 @@ def main(argv):
     try:  # 명령행 인수 파싱
         opts, _ = getopt.getopt(argv, 'hp:cn:q:d:i:sr:l:', [
             'help', 'press=', 'collect', 'number=', 'query=',
-            'detail=', 'ignore=', 'scrap', 'result=', 'list='])
+            'detail=', 'ignore=', 'scrap', 'result-file=', 'list-file='])
 
     except getopt.GetoptError as error:  # 오류 발생 (잘못된 입력)
         print(error)
@@ -94,9 +94,9 @@ def main(argv):
             ignore_count = int(arg)
         elif opt in ('-s', '--scrap'):  # 기사 내용 스크랩
             will_scrap = True
-        elif opt in ('-r', '--result'):  # 결과 파일명
+        elif opt in ('-r', '--result-file'):  # 결과 파일명
             result_file_name = arg
-        elif opt in ('-l', '--list'):  # 리스트 파일명
+        elif opt in ('-l', '--list-file'):  # 리스트 파일명
             list_file_name = arg
         else:
             print_help(1)
@@ -114,9 +114,16 @@ def main(argv):
         print_help(1)
 
     if list_file_name is None:  # 리스트 파일 이름 기본값
-        list_file_name = f'articles_list_{datetime.datetime.now().strftime("%Y-%m-%d")}_{press}_{query_word or ""}_{detail_word or ""}.csv'
+        list_file_name = f'articles_list_{press}_' + \
+            (f"{query_word}_" if query_word is not None else "") + \
+            (f"_{detail_word}_" if detail_word is not None else "") + \
+            f'{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
+
     if result_file_name is None:  # 기본 출력 파일명 지정
-        result_file_name = f'articles_scrap_{datetime.datetime.now().strftime("%Y-%m-%d")}_{press}_{query_word or ""}_{detail_word or ""}.csv'
+        result_file_name = f'articles_scrap_{press}_' + \
+            (f"{query_word}_" if query_word is not None else "") + \
+            (f"_{detail_word}_" if detail_word is not None else "") + \
+            f'{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
 
     # 작업 진행
 
@@ -133,6 +140,7 @@ def main(argv):
     else:
         print_help(1)
 
+    # 문제: 스레드 및 큐 join 중 SIGINT 무시됨.
     if will_collect is True and will_scrap is True:
         try:
             with open(list_file_name, 'w', encoding='utf8') as list_file, \
@@ -142,11 +150,15 @@ def main(argv):
                 result_file.write('"date", "title", "body"\n')
 
                 # 작업 큐 및 스레드 생성
-                article_queue = queue.Queue()
+                article_queue = queue.Queue(1000)  # 작업 큐. 최대 대기열 1000개로 지정
+
+                # 생산자 스레드
                 collect_thread = Thread(target=collect, args=(
                     scraper, collect_count, ignore_count, query_word, detail_word, list_file,
                     article_queue.put
                 ))
+
+                # 소비자 스레드
                 scrap_thread = Thread(target=scrap, args=(
                     scraper, result_file, article_queue
                 ), daemon=True)
@@ -192,13 +204,17 @@ def main(argv):
                 result_file.write('"date", "title", "body"\n')
 
                 # 작업 큐 생성 및 스레드 생성
-                article_queue = queue.Queue()
+                article_queue = queue.Queue(1000)  # 작업 큐. 최대 대기열 1000개로 지정
 
+                # 생산자 스레드 동작 (파일 읽기)
                 def enqueue_list_reader():
                     for article in list_reader:
                         article_queue.put(article)
 
+                # 생산자 스레드
                 read_thread = Thread(target=enqueue_list_reader)
+
+                # 소비자 스레드
                 scrap_thread = Thread(target=scrap, args=(
                     scraper, result_file, article_queue), daemon=True)
 
@@ -217,9 +233,8 @@ def main(argv):
             traceback.print_exc(file=sys.stdout)
             sys.exit(1)
 
+
 # 수집 수행
-
-
 def collect(scraper, collect_count, ignore_count, query_word, detail_word,
             list_file, method_save=None):
     print('Collecting Articles')
@@ -243,8 +258,6 @@ def collect(scraper, collect_count, ignore_count, query_word, detail_word,
 
         print('Collecting Completed')
 
-    except KeyboardInterrupt:
-        raise KeyboardInterrupt
     except:
         print(f'Collecting Failed at [{num}] ')
         traceback.print_exc(limit=3, file=sys.stdout)
@@ -252,9 +265,8 @@ def collect(scraper, collect_count, ignore_count, query_word, detail_word,
         collect(scraper, collect_count - num - 1, ignore_count + num, query_word,
                 detail_word, list_file, method_save)
 
+
 # 스크래핑 수행
-
-
 def scrap(scraper, result_file, article_source_queue):
     print('Scraping Articles')
 
@@ -262,8 +274,8 @@ def scrap(scraper, result_file, article_source_queue):
     while True:
         try:
             num += 1
-
             article = article_source_queue.get()
+
             url = article['url']
             content = scraper.scrap_articles(url)  # 내용 스크랩
 
@@ -276,8 +288,6 @@ def scrap(scraper, result_file, article_source_queue):
 
             article_source_queue.task_done()
 
-        except KeyboardInterrupt:
-            raise KeyboardInterrupt
         except:
             print(f'Scraping Failed [{num}] {url}')
             traceback.print_exc(limit=3, file=sys.stdout)
