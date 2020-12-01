@@ -1,12 +1,13 @@
-#####################################################
-# 필요 라이브러리 설치 코드                               #
-#####################################################
+##############################################################
+# 필요 라이브러리 설치 코드                                    #
+##############################################################
 
-# CRAN 미러 선택
+####################### CRAN 미러 선택 ########################
 chooseCRANmirror(graphics=FALSE, ind=48) # 부경대 미러 (48)
 
-install.packages("getopt")
+##################### 필요 라이브러리 설치 #####################
 
+install.packages("getopt")
 install.packages("rJava")
 install.packages("rmarkdown")
 install.packages('servr')
@@ -31,6 +32,7 @@ install.packages('Rcpp')       #Rcpp 패키지
 install.packages('slam')       #slam 패키지
 install.packages('rlang')      #rlang 패키지
 install.packages('vctrs')      #vctrs 패키지
+install.packages("textmineR")
 
 install.packages("multilinguer")
 library(multilinguer)
