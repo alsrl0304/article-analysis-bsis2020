@@ -134,7 +134,7 @@ def main(argv):
     if press == 'joongang':
         scraper = JoongangScraper()
     elif press == 'donga':
-        scraper = DongaScraper(chromedriver_path)
+        scraper = DongaScraper()
     elif press == 'chosun':
         scraper = ChosunScraper()
     else:
@@ -150,7 +150,7 @@ def main(argv):
                 result_file.write('"date", "title", "body"\n')
 
                 # 작업 큐 및 스레드 생성
-                article_queue = queue.Queue(1000)  # 작업 큐. 최대 대기열 1000개로 지정
+                article_queue = queue.Queue(5000)  # 작업 큐. 최대 대기열 수 지정
 
                 # 생산자 스레드
                 collect_thread = Thread(target=collect, args=(
@@ -172,11 +172,11 @@ def main(argv):
                 # 따라서 작업 종료를 직접 확인하고 join에 타임아웃 부여
                 # 스레드를 데몬으로 하고 작업 종료 전까지만 메인 프로세스를 살려놓음
                 while article_queue.empty():
-                    collect_thread.join(0.5)
+                    collect_thread.join(1)
 
                 while True:
-                    collect_thread.join(1)
-                    time.sleep(0)
+                    collect_thread.join(0.5)
+                    time.sleep(0.5)
                     if article_queue.empty():
                         # 소비자 스레드 종료
                         article_queue.put(None)
@@ -224,7 +224,7 @@ def main(argv):
                 result_file.write('"date", "title", "body"\n')
 
                 # 작업 큐 생성 및 스레드 생성
-                article_queue = queue.Queue(1000)  # 작업 큐. 최대 대기열 1000개로 지정
+                article_queue = queue.Queue(5000)  # 작업 큐. 최대 대기열 1000개로 지정
 
                 # 생산자 스레드 동작 (파일 읽기)
                 def enqueue_list_reader():
@@ -276,7 +276,7 @@ def collect(scraper, collect_count, ignore_count, query_word, detail_word,
 
     num = 1  # 기사 카운터
 
-    print(f'Ignoring {ignore_count} Articles...')
+    print(f'Ignoring {ignore_count} Articles')
 
     try:
         for article in scraper.collect_articles(collect_count, ignore_count,
