@@ -25,6 +25,7 @@ import inspect  # 텍스트 도구
 import csv  # csv 파서
 import traceback  # 오류 추적 모듈
 import queue  # 작업 공유용 큐
+import time  # 스레드 시간 처리 모듈
 from threading import Thread  # 스레드 모듈
 
 from scraper_press import JoongangScraper, DongaScraper, ChosunScraper  # 링크 스크래퍼 클래스
@@ -128,7 +129,6 @@ def main(argv):
     # 작업 진행
 
     # 스크래퍼 선택
-
     chromedriver_path = './chromedriver'
 
     if press == 'joongang':
@@ -156,7 +156,7 @@ def main(argv):
                 collect_thread = Thread(target=collect, args=(
                     scraper, collect_count, ignore_count, query_word, detail_word, list_file,
                     article_queue.put
-                ))
+                ), daemon=True)
 
                 # 소비자 스레드
                 scrap_thread = Thread(target=scrap, args=(
@@ -167,17 +167,32 @@ def main(argv):
                 collect_thread.start()
                 scrap_thread.start()
 
-                # 스레드 작업 종료될 때 까지 대기
-                collect_thread.join()
-                article_queue.join()
+                # 작업 완료까지 대기
+                # 스레드 및 큐의 join 메서드는 SIGINT를 무시하는 버그 있음
+                # 따라서 작업 종료를 직접 확인하고 join에 타임아웃 부여
+                # 스레드를 데몬으로 하고 작업 종료 전까지만 메인 프로세스를 살려놓음
+                while article_queue.empty():
+                    collect_thread.join(0.5)
 
-                # 소비자 스레드 종료
-                article_queue.put(None)
+                while True:
+                    collect_thread.join(1)
+                    time.sleep(0)
+                    if article_queue.empty():
+                        # 소비자 스레드 종료
+                        article_queue.put(None)
+                        break
 
-            print("Process Completed")
+                # 소비자 스레드 완료까지 대기
+                while not article_queue.empty():
+                    scrap_thread.join(1)
+
+                print("Process Completed")
 
         except KeyboardInterrupt:
             print('Process Aborted by KeyboardInterrupt')
+            while not article_queue.empty():
+                article_queue.get_nowait()
+            article_queue.put(None)
         except:
             print("Process Failed")
             traceback.print_exc(file=sys.stdout)
@@ -193,6 +208,7 @@ def main(argv):
 
         except KeyboardInterrupt:
             print('Collection Aborted by KeyboardInterrupt')
+
         except:
             print('Collection Failed')
             traceback.print_exc(file=sys.stdout)
@@ -202,6 +218,7 @@ def main(argv):
         try:
             with open(list_file_name, 'r', encoding='utf8') as list_file, \
                     open(result_file_name, 'w', encoding='utf8') as result_file:
+
                 list_reader = csv.DictReader(list_file)
 
                 result_file.write('"date", "title", "body"\n')
@@ -215,25 +232,37 @@ def main(argv):
                         article_queue.put(article)
 
                 # 생산자 스레드
-                read_thread = Thread(target=enqueue_list_reader)
+                read_thread = Thread(target=enqueue_list_reader, daemon=True)
 
                 # 소비자 스레드
                 scrap_thread = Thread(target=scrap, args=(
-                    scraper, result_file, article_queue))
+                    scraper, result_file, article_queue), daemon=True)
 
                 # 스레드 시작
                 read_thread.start()
                 scrap_thread.start()
 
-                # 스레드 작업 종료까지 대기
-                read_thread.join()
-                article_queue.join()
+                # 작업 완료까지 대기
+                # 스레드 및 큐의 join 메서드는 SIGINT를 무시하는 버그 있음
+                # 따라서 작업 종료를 직접 확인하고 join에 타임아웃 부여
+                # 스레드를 데몬으로 하고 작업 종료 전까지만 메인 프로세스를 살려놓음
+                while True:
+                    read_thread.join(1)
+                    time.sleep(0)
+                    if article_queue.empty():
+                        # 소비자 스레드 종료
+                        article_queue.put(None)
+                        break
 
-                # 소비자 스레드 종료
-                article_queue.put(None)
+                # 소비자 스레드 완료까지 대기
+                while not article_queue.empty():
+                    scrap_thread.join(1)
 
         except KeyboardInterrupt:
             print('Scraping Aborted by KeyboardInterrupt')
+            while not article_queue.empty():
+                article_queue.get_nowait()
+            article_queue.put(None)
         except:
             print('Scraping Failed')
             traceback.print_exc(file=sys.stdout)
@@ -262,13 +291,15 @@ def collect(scraper, collect_count, ignore_count, query_word, detail_word,
             print(f'Collected [{num}] {article["url"]}')
             num += 1
 
+        if num < collect_count:
+            print("Not Enough Articles to Collect")
         print('Collecting Completed')
 
     except:
         print(f'Collecting Failed at [{num}] ')
         traceback.print_exc(limit=3, file=sys.stdout)
         print('Ignore it and Resume...')
-        collect(scraper, collect_count - num - 1, ignore_count + num, query_word,
+        collect(scraper, (collect_count - num - 1), (ignore_count + num), query_word,
                 detail_word, list_file, method_save)
 
 
