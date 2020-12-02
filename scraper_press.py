@@ -2,7 +2,6 @@
 # 특정 언론사 웹 페이지에서 기사 스크랩하는 클래스
 ##########################################################################
 
-import sys  # 시스템 모듈
 import re  # 정규표현식
 import json  # JSON(Javascript Object Notation) 도구
 
@@ -10,12 +9,6 @@ from functools import reduce  # 고차함수
 
 import requests  # HTTP REQUEST를 위한 모듈
 from bs4 import BeautifulSoup  # HTML 분석기
-
-# 브라우저 자동화 도구
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions
 
 
 # 기사 스크래퍼를 위한 추상 클래스
@@ -45,10 +38,10 @@ class Scraper:
             return response
         except requests.exceptions.HTTPError as error:
             print(error)
-            sys.exit(1)
+            raise error
         except requests.exceptions.InvalidURL as error:
             print(error)
-            sys.exit(1)
+            raise error
 
     # {'url': (링크), 'title': (제목)} 딕셔너리를 제너레이터로 반환할것
     def collect_articles(self, collect_count, ignore_count, query_word, detail_word):
@@ -138,16 +131,6 @@ class DongaScraper(Scraper):
     ARTICLE_HREF_FILTER = re.compile(r'.+/news/article/.+')  # 기사 필터
     NUM_ARTICLE_PER_QUERY = 15  # 페이지당 기사 수
 
-    def __init__(self, chromedriver_path):
-        # Selenium 설정
-        options = webdriver.ChromeOptions()  # Chromedriver 옵션
-        options.add_argument('headless')  # 헤드리스(GUI 없음) 모드
-        options.add_argument('window-size=1920x1080')
-        options.add_argument("disable-gpu")
-        options.add_argument("--log-level=3")
-        self.driver = webdriver.Chrome(
-            chromedriver_path, chrome_options=options)
-
     def collect_articles(self, collect_count, ignore_count, query_word, detail_word):
 
         # 찾은 기사 수
@@ -161,16 +144,13 @@ class DongaScraper(Scraper):
         for page in range(page_ignore,
                           (collect_count+ignore_count) // DongaScraper.NUM_ARTICLE_PER_QUERY + 2):
 
-            self.driver.get(
-                f'https://www.donga.com/news/search?p={1+page*DongaScraper.NUM_ARTICLE_PER_QUERY}&query={query_word}&check_news=1&more=1&sorting=1&search_date=1&v1=&v2=&range=2')
+            soup = BeautifulSoup(
+                Scraper._request_get(
+                    f'http://news.donga.com/search?p={1+page*DongaScraper.NUM_ARTICLE_PER_QUERY}&check_news=1&more=1&sorting=1&range=3&search_date=&v1=&v2=&query={query_word}')
+                .text, 'html.parser')
 
-            WebDriverWait(self.driver, 10).until(expected_conditions.presence_of_element_located((
-                By.CSS_SELECTOR, '#content > div.searchContWrap > div.searchCont > div.searchList > div.t > p.tit > a')))
-
-            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
-
-            link_elements = soup.select(
-                '#content > div.searchContWrap > div.searchCont > div.searchList > div.t > p.tit > a')  # 검색 결과의 제목과 사이트 주소가 포함되어 있는 부분의 css selector.
+            # 검색 결과의 제목과 사이트 주소가 포함되어 있는 부분의 css selector.
+            link_elements = soup.select('div.t > p.tit > a')
 
             link_elements = list(filter(lambda element: DongaScraper.ARTICLE_HREF_FILTER.search(
                 element.get("href")), link_elements))  # 기사 링크만 필터링
