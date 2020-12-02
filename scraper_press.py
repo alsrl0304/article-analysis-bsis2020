@@ -22,7 +22,7 @@ from selenium.webdriver.support import expected_conditions
 class Scraper:
 
     CHARACTER_FILTER = re.compile(
-        r'[^ 가-힣|0-9|\[|\]|(|)|-|?|!|.|:|;|%]+')  # 특수 문자나 필요없는 문자들을 제외하기 위한 정규식
+        r'[^ 가-힣]+')  # 특수 문자나 필요없는 문자들을 제외하기 위한 정규식
 
     DATE_REGEX = re.compile(
         r'.*((?:19|20)(?:\d{2}))[-.](0[1-9]|1[0-2])[-.]([012][0-9]|3[01]).*')  # 날짜 검출용 정규식
