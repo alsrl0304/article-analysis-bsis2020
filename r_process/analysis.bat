@@ -1,3 +1,5 @@
+IF NOT EXIST %3 ( mkdir %3 )
+
 Rscript --encoding=utf8 1_extract_nouns.r -i %1 -f %2 -o %3\nouns.csv
 
 Rscript --encoding=utf8 2_frequency.r -i %3\nouns.csv -n 25 -o %3\frequent.csv
