@@ -129,7 +129,6 @@ def main(argv):
     # 작업 진행
 
     # 스크래퍼 선택
-    chromedriver_path = './chromedriver'
 
     if press == 'joongang':
         scraper = JoongangScraper()
@@ -274,7 +273,7 @@ def collect(scraper, collect_count, ignore_count, query_word, detail_word,
             list_file, method_save=None):
     print('Collecting Articles')
 
-    num = 1  # 기사 카운터
+    num = ignore_count + 1  # 기사 카운터
 
     print(f'Ignoring {ignore_count} Articles')
 
