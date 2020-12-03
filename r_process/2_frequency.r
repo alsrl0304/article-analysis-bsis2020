@@ -9,7 +9,7 @@ library(tools)
 argSpec <- matrix(c(
     'help', 'h', 0, 'logical', "도움말",
     'input', 'i', 1, 'character', "명사 추출한 기사 csv 파일",
-    'number', 'n', 1, 'ingeger', "사용한 상위 단어 수 (기본값 25)",
+    'number', 'n', 1, 'integer', "사용한 상위 단어 수 (기본값 25)",
     'output', 'o', 1, 'character', "상위 단어들을 저장할 csv 파일 (기본값 frequent_{input}.csv)"
 ), byrow=TRUE, ncol=5)
 
