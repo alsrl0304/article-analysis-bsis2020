@@ -69,6 +69,7 @@ cat("\n기사 ", numOfArticles, " 개로 작업 실시.\n", sep="")
 cat("\n명사 추출... ")
 
 for(cntArticle in 1:numOfArticles) {
+    cat("\r명사 추출... ", round(cntArticle / numOfArticles * 100), "%", sep='')
     classifiedVector <- SimplePos22(articlesDataFrame$body[cntArticle])  # 22가지 품사 구분으로 추출하는 함수
     classifiedStringVector <- paste(classifiedVector)
     nounsVectorWithNA <- str_match(classifiedStringVector, '([가-힣]+)/NC')[,2]  # 모든 한글에 대해서 보통명사만 추출
@@ -108,9 +109,13 @@ tdmArticles <- TermDocumentMatrix(corpusArticles, control=list(wordLengths=c(1, 
 infrequentWordsVector <- paste(findFreqTerms(tdmArticles, 1,2)) #출현 횟수가 1-2회인 단어들을 추출
 
 #출현 횟수가 낮은 단어들을 보통명사들만 저장된 문서들에서 제거하기 위한 루틴
+done <- 1
+total <- length(infrequentWordsVector)
 for(infrquentWord in infrequentWordsVector) {
+    cat("\r저빈도수 단어 제거... ", round(done / total * 100), "%", sep='')
     spacedWord <- paste(' ', infrquentWord, ' ', sep="")
     articlesDataFrame$body <- gsub(spacedWord, " ", articlesDataFrame$body)
+    done <- done + 1
 }
 
 cat("[완료]")
@@ -138,9 +143,14 @@ orderedWordVector <- order(rowSums(matArticles), decreasing = TRUE) #빈도가 �
 
 # 불용어 제거
 filterWordsVector <- readLines(filterFileName, encoding='UTF-8')
+
+done <- 1
+total <- length(filterWordsVector)
 for (filterWord in filterWordsVector) {
+    cat("\r불용어 제거... ", round(done / total * 100), "%", sep='')
     spacedFilterWord <- paste(' ', filterWord, ' ', sep="")
     articlesDataFrame$body = gsub(spacedFilterWord, " ", articlesDataFrame$body);
+    done <- done + 1
 }
 
 cat("[완료]")
