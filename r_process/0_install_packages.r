@@ -3,7 +3,7 @@
 ##############################################################
 
 ####################### CRAN 미러 선택 ########################
-chooseCRANmirror(graphics=FALSE, ind=48) # 부경대 미러 (48)
+chooseCRANmirror(graphics=FALSE, ind=48)
 
 ##################### 필요 라이브러리 설치 #####################
 
@@ -36,6 +36,6 @@ install.packages("textmineR")
 
 install.packages("multilinguer")
 library(multilinguer)
-install.packages(c('stringr', 'hash', 'tau', 'Sejong', 'RSQLite', 'devtools'), type = "binary")
+install.packages(c('stringr', 'hash', 'tau', 'Sejong', 'RSQLite', 'devtools'))
 install.packages("remotes")
 remotes::install_github('haven-jeon/KoNLP', upgrade = "never", INSTALL_opts=c("--no-multiarch"))
