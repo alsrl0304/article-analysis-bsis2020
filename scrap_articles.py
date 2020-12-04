@@ -298,7 +298,7 @@ def collect(scraper, collect_count, ignore_count, query_word, detail_word,
         print(f'Collecting Failed at [{num}] ')
         traceback.print_exc(limit=3, file=sys.stdout)
         print('Ignore it and Resume...')
-        collect(scraper, (collect_count - num - 1), (ignore_count + num), query_word,
+        collect(scraper, (collect_count - num - 1), num, query_word,
                 detail_word, list_file, method_save)
 
 
