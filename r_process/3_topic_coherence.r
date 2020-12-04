@@ -7,11 +7,11 @@ library(getopt)
 library(tools)
 
 argSpec <- matrix(c(
-    'help', 'h', 0, 'logical', "도움말",
-    'input', 'i', 1, 'character', "명사 추출한 기사 csv 파일",
-    'minimum-topics', 'm', 1, 'integer', "Coherence 시험할 최소 토픽 수(기본값 2)",
-    'maximum-topics', 'M', 1, 'integer', "Coherence 시험할 최대 토픽 수(기본값 15)",
-    'output', 'o', 1, 'character', "Coherence 결과 저장할 csv 파일 (Default coherence_{input}.csv)"
+    'help', 'h', 0, 'logical', "help",
+    'input', 'i', 1, 'character', "Extracted Nouns, CSV File",
+    'minimum-topics', 'm', 1, 'integer', "Minimum Topics Count to Calculate Coherence (Default 2)",
+    'maximum-topics', 'M', 1, 'integer', "Maximum Topics Count to Calculate Coherence (Default 15)",
+    'output', 'o', 1, 'character', "Coherence Result, CSV File (Default coherence_{input}.csv)"
 ), byrow=TRUE, ncol=5)
 
 opts <- getopt(argSpec)
@@ -50,7 +50,7 @@ library(textmineR)
 # $date (작성일), $title (제목), $body (기사 본문)
 articlesDataFrame <- read.csv(nounsFileName, header = TRUE, fileEncoding = "UTF-8", stringsAsFactors=FALSE)
 
-cat("\nDocument Term Matrix 생성... ")
+cat("Generating Document Term Matrix... ")
 set.seed(1502)
 dtmArticles = CreateDtm(doc_vec = articlesDataFrame$body,
                     doc_names = 1:length(articlesDataFrame$body),
@@ -60,14 +60,13 @@ dtmArticles = CreateDtm(doc_vec = articlesDataFrame$body,
 
 dtmArticles <- dtmArticles[,colSums(dtmArticles)>2]
 
-cat("[완료]")
-
-cat("\nLDA 모델 훈련 시작... \n")
+cat("[DONE]\n")
 set.seed(1502)
 
 coherenceDataFrame <- data.frame(topics = minTopics:maxTopics)
 coherenceMeanColumn <- c()
 
+cat("Training LDA Models... ")
 # Topic 수를 늘려가면서 LDA 모델 훈련
 for (numOfTopic in minTopics:maxTopics) {
     articlesLdaModel <- FitLdaModel(dtm = dtmArticles, k = numOfTopic,
@@ -78,11 +77,12 @@ for (numOfTopic in minTopics:maxTopics) {
                             calc_coherence = TRUE,
                             calc_r2 = TRUE)
     
-    cat("> 훈련 완료 (Topic 수: ", numOfTopic, ")\n", sep='')
+    cat("\rTraining LDA Models... ", (numOfTopic - minTopics + 1), "/", (maxTopics - minTopics + 1), sep='')
     coherenceMeanColumn <- append(coherenceMeanColumn, mean(articlesLdaModel$coherence))
 }
 coherenceDataFrame$coherence <- coherenceMeanColumn
-cat("\n[완료]")
+
+cat("\rTraining LDA Models... [DONE]\n")
 
 write.table(coherenceDataFrame, coherenceFileName, sep=", ", row.names = FALSE, fileEncoding="UTF-8")
-cat("\n")
+

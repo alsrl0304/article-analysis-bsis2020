@@ -7,11 +7,11 @@ library(getopt)
 library(tools)
 
 argSpec <- matrix(c(
-    'help', 'h', 0, 'logical', "도움말",
-    'input', 'i', 1, 'character', "스크래핑한 기사 csv 파일명",
-    'filter', 'f', 1, 'character', "제거할 불용어 목록 txt 파일 (기본값 filter.txt)",
-    'output', 'o', 1, 'character', "명사 추출한 기사 저장할 csv 파일 (기본값 nouns_{input}.csv)",
-    'sejongdic', 's', 0, 'logical', "NIA 사전 대신 세종 사전 사용"
+    'help', 'h', 0, 'logical', "help",
+    'input', 'i', 1, 'character', "Scraped Articles, CSV File",
+    'filter', 'f', 1, 'character', "Stopwords List, TXT File (Default filter.txt)",
+    'output', 'o', 1, 'character', "Extracted Nouns, CSV File (Default nouns_{input}.csv)",
+    'sejongdic', 's', 0, 'logical', "Use Sejong Dic instead of NIA Dic"
 ), byrow=TRUE, ncol=5)
 
 opts <- getopt(argSpec)
@@ -65,11 +65,11 @@ articlesDataFrame <- read.csv(articlesFileName, header = TRUE, fileEncoding = "U
 # 전체 기사의 개수
 numOfArticles <- length(articlesDataFrame[,1])
 
-cat("\n기사", numOfArticles, "\b개로 작업 실시.\n")
-cat("\n명사 추출... ")
+cat("Extract Nouns with", numOfArticles, "Articles.\n", encoding='UTF-8')
+cat("Extracting Nouns... ")
 
 for(cntArticle in 1:numOfArticles) {
-    cat("\r명사 추출... ", round(cntArticle / numOfArticles * 100), "%", sep='')
+    cat("\rExtracting Nouns... ", round(cntArticle / numOfArticles * 100), "%", sep='')
     classifiedVector <- SimplePos22(articlesDataFrame$body[cntArticle])  # 22가지 품사 구분으로 추출하는 함수
     classifiedStringVector <- paste(classifiedVector)
     nounsVectorWithNA <- str_match(classifiedStringVector, '([가-힣]+)/NC')[,2]  # 모든 한글에 대해서 보통명사만 추출
@@ -85,7 +85,7 @@ for(cntArticle in 1:numOfArticles) {
     articlesDataFrame$body[cntArticle] <- line  # 추출된 보통 명사들을 원 기사 본문 필드에 대체
 }
 
-cat("[완료]")
+cat("\rExtracting Nouns... [DONE]\n")
 
 ################ 저빈도수 단어들을 제거 ###################
 # 분석을 위해서는 '문서수 x 단어수' 요소 만큼의 2차원 행렬을 생성하게 됨.
@@ -95,7 +95,7 @@ cat("[완료]")
 # 이 문제를 해결하기 위해 분석에 영향을 주지않는 빈도수가 아주 낮은
 # 단어들을 제거하는 것이 바람직함.
 
-cat("\n저빈도수 단어 제거... ")
+cat("Removing Infrequent Words... ")
 
 corpusArticles <- VCorpus(VectorSource(articlesDataFrame$body)) 
 # term-document 매트릭스를 만들기 위하여 corpus 구조로 변환
@@ -112,17 +112,17 @@ infrequentWordsVector <- paste(findFreqTerms(tdmArticles, 1,2)) #출현 횟수�
 done <- 1
 total <- length(infrequentWordsVector)
 for(infrquentWord in infrequentWordsVector) {
-    cat("\r저빈도수 단어 제거... ", round(done / total * 100), "%", sep='')
+    cat("\rRemoving Infrequent Words... ", round(done / total * 100), "%", sep='')
     spacedWord <- paste(' ', infrquentWord, ' ', sep="")
     articlesDataFrame$body <- gsub(spacedWord, " ", articlesDataFrame$body)
     done <- done + 1
 }
 
-cat("[완료]")
+cat("\rRemoving Infrequent Words... [DONE]\n")
 
 ################### 불용어 제거 루틴 ####################
 
-cat("\n불용어 제거... ")
+cat("Removing Stopwords... ")
 
 corpusArticles <- VCorpus(VectorSource(articlesDataFrame$body)) 
 # term-document 매트릭스를 만들기 위하여 corpus 구조로 변환
@@ -142,19 +142,18 @@ matArticles <- as.matrix(tdmArticles)
 orderedWordVector <- order(rowSums(matArticles), decreasing = TRUE) #빈도가 높은 단어들부터 내림차순 순서를 만듦
 
 # 불용어 제거
-filterWordsVector <- readLines(filterFileName, encoding='UTF-8')
+filterWordsVector <- scan(filterFileName, what="character", fileEncoding='UTF-8')
 
 done <- 1
 total <- length(filterWordsVector)
 for (filterWord in filterWordsVector) {
-    cat("\r불용어 제거... ", round(done / total * 100), "%", sep='')
+    cat("\rRemoving Stopwords... ", round(done / total * 100), "%", sep='')
     spacedFilterWord <- paste(' ', filterWord, ' ', sep="")
     articlesDataFrame$body = gsub(spacedFilterWord, " ", articlesDataFrame$body);
     done <- done + 1
 }
 
-cat("[완료]")
+cat("\rRemoving Stopwords... [DONE]\n")
 
 # 불용어 삭제한 결과 문서를 저장
 write.table(articlesDataFrame, resultFileName, sep=", ", row.names = FALSE, fileEncoding="UTF-8")
-cat("\n")

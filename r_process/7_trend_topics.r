@@ -7,10 +7,10 @@ library(getopt)
 library(tools)
 
 argSpec <- matrix(c(
-    'help', 'h', 0, 'logical', "도움말",
-    'input', 'i', 1, 'character', "Gibbs Sampling 모델 RData 파일",
-    'period', 'p', 1, 'integer', "분석 단위 기간 1: 일별 | 2: 월별 | 3: 연도별 (기본값 1)",
-    'output', 'o', 1, 'character', "기간별 Topic 비중 변화 csv 파일 (기본값 trends_{input}.csv)"
+    'help', 'h', 0, 'logical', "help",
+    'input', 'i', 1, 'character', "Trained Gibbs Sampling Model, RData File",
+    'period', 'p', 1, 'integer', "Analysis Period 1: Daily | 2: Monthly | 3: Yearly (Default 1)",
+    'output', 'o', 1, 'character', "Articles Proportion Trends, CSV File (Default trends_{input}.csv)"
 ), byrow=TRUE, ncol=5)
 
 opts <- getopt(argSpec)
@@ -42,9 +42,9 @@ if (is.null(trendsFileName)) {
 
 ################ Topic별 기간에 따른 변화 확인 #################
 
-cat(paste("\nTopic 변화", switch(periodSelect, " 일별", " 월별", " 연도별"), " 분석 실시.\n", sep=''))
+cat("Analysis Trends", switch(periodSelect, "Daily", "Monthly", "Yearly"))
 
-cat("\n기간별 Topic 변화 추적... ")
+cat("Tracking Articles Proportion Trends... ")
 
 load(modelFileName)
 
@@ -69,7 +69,6 @@ trendsMeanDataFrame$period <- NULL
 # 컬럼 이름 변경
 colnames(trendsMeanDataFrame)[which(colnames(trendsMeanDataFrame) == 'Group.1')] <- 'period'
 
-cat("[완료]")
+cat("[DONE]\n")
 
 write.table(trendsMeanDataFrame, trendsFileName, sep=",", row.names = FALSE, fileEncoding="UTF-8")
-cat("\n")

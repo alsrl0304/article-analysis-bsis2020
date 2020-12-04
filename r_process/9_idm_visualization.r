@@ -7,9 +7,9 @@ library(getopt)
 library(tools)
 
 argSpec <- matrix(c(
-    'help', 'h', 0, 'logical', "도움말",
-    'input', 'i', 1, 'character', "Gibbs Sampling 모델 RData 파일",
-    'output', 'o', 1, 'character', "IDM 웹 문서 경로 (기본값 ./IDM_{input}/)"
+    'help', 'h', 0, 'logical', "help",
+    'input', 'i', 1, 'character', "Trained Gibbs Sampling Model, RData File",
+    'output', 'o', 1, 'character', "IDM Visualization Document Files Path (Default ./IDM_{input}/)"
 ), byrow=TRUE, ncol=5)
 
 opts <- getopt(argSpec)
@@ -47,7 +47,7 @@ set.seed(42135798)
 # 앞서 분석할 때 사용한 초기 시드값을 사용함으로써 
 # 새로 수행할 경우 오차가 크게 발생하지 않음
 
-cat("\n기사 Document Term Matrix 생성... ")
+cat("Generating Document Term Matrix... ")
 
 # articlesDataFrame: $date (작성일), $title (제목), $body (기사 본문)
 load(modelFileName)
@@ -61,9 +61,9 @@ orderedWordsVector <- order(rowSums(matArticles), decreasing = TRUE)
 # 상위 wordsNum개의 단어로 군집화에 사용될 document-term 매트릭스 생성
 dtmArticles <- as.DocumentTermMatrix(tdmArticles[orderedWordsVector[1:wordsNum],])
 
-cat("[완료]")
+cat("[DONE]\n")
 
-cat("\nIDM 문서 생성... ")
+cat("Generating IDM Visualization Document... ")
 # 이상 2개의 파라미터 값은 LDA 분석에 사용한 것과 같은 값을 사용하여야
 # 새로 처리하는 경우에도 추출되는 토픽별 단어에 큰 변동이 없음
 
@@ -81,9 +81,7 @@ json <- createJSON(
     vocab = colnames(dtmArticles),
     term.frequency = colTotals, R=wordsNum, lambda.step = 0.01, mds.method = jsPCA)
 # R : map에 표시할 토픽별 단어 개수
-cat("[완료]")
+cat("[DONE]\n")
 
 # 생성된 json 파일과 관련 시각화 파일들을 해당 디렉토리에 생성
 serVis(json, out.dir = idmDirName, encoding='UTF-8', open.browser=FALSE)
-
-cat("\n")

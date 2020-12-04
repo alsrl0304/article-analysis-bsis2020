@@ -7,9 +7,9 @@ library(getopt)
 library(tools)
 
 argSpec <- matrix(c(
-    'help', 'h', 0, 'logical', "도움말",
-    'input', 'i', 1, 'character', "Gibbs Sampling 모델 RData 파일",
-    'output', 'o', 1, 'character', "각 Topic 당 기사 비중 csv 파일 (기본값 proportion_{input}.csv)"
+    'help', 'h', 0, 'logical', "help",
+    'input', 'i', 1, 'character', "Trained Gibbs Sampling Model, RData File",
+    'output', 'o', 1, 'character', "Articles Proportion of each Topics (기본값 proportion_{input}.csv)"
 ), byrow=TRUE, ncol=5)
 
 opts <- getopt(argSpec)
@@ -43,12 +43,11 @@ library(lda)
 
 load(modelFileName)
 
-cat("\n각 Topic 당 비중 계산... ")
+cat("Calculating Articles Proportion of each Topics... ")
 # 각 topic의 비중을 계산
 topicPropotion <- gibbsResult$topic_sums[,1]/sum(gibbsResult$topic_sums[,1]) 
 
-cat("[완료]")
+cat("[DONE]\n")
 
 # 전기간 topic 별 비중을 파일로 저장
 write.table(topicPropotion, proportionFileName, sep=",", row.names = TRUE, col.names = NA, fileEncoding="UTF-8")
-cat("\n")
