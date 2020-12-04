@@ -65,7 +65,7 @@ articlesDataFrame <- read.csv(articlesFileName, header = TRUE, fileEncoding = "U
 # 전체 기사의 개수
 numOfArticles <- length(articlesDataFrame[,1])
 
-cat("\n기사 ", numOfArticles, " 개로 작업 실시.\n", sep="")
+cat("\n기사", numOfArticles, "\b개로 작업 실시.\n")
 cat("\n명사 추출... ")
 
 for(cntArticle in 1:numOfArticles) {
@@ -157,4 +157,4 @@ cat("[완료]")
 
 # 불용어 삭제한 결과 문서를 저장
 write.table(articlesDataFrame, resultFileName, sep=", ", row.names = FALSE, fileEncoding="UTF-8")
-cat("\n\n작업 완료.\n")
+cat("\n")

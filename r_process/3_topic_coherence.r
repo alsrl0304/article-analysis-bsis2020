@@ -47,10 +47,8 @@ if (is.null(coherenceFileName)) {
 #################### Topic Coherence 계산 ####################
 library(textmineR)
 
+# $date (작성일), $title (제목), $body (기사 본문)
 articlesDataFrame <- read.csv(nounsFileName, header = TRUE, fileEncoding = "UTF-8", stringsAsFactors=FALSE)
-# perplexity 함수를 이용한 혼잡도 값을 계산하기 위한 파일 읽어 들임
-
-cat("\n기사 ", length(articlesDataFrame[,1]), " 개로 작업 실시. \n", sep='')
 
 cat("\nDocument Term Matrix 생성... ")
 set.seed(1502)
@@ -80,11 +78,11 @@ for (numOfTopic in minTopics:maxTopics) {
                             calc_coherence = TRUE,
                             calc_r2 = TRUE)
     
-    cat("\n> 훈련 완료 (Topic 수: ", numOfTopic, ")", sep='')
+    cat("> 훈련 완료 (Topic 수: ", numOfTopic, ")\n", sep='')
     coherenceMeanColumn <- append(coherenceMeanColumn, mean(articlesLdaModel$coherence))
 }
 coherenceDataFrame$coherence <- coherenceMeanColumn
 cat("\n[완료]")
 
 write.table(coherenceDataFrame, coherenceFileName, sep=", ", row.names = FALSE, fileEncoding="UTF-8")
-cat("\n\n작업 완료.\n")
+cat("\n")

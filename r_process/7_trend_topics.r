@@ -72,4 +72,4 @@ colnames(trendsMeanDataFrame)[which(colnames(trendsMeanDataFrame) == 'Group.1')]
 cat("[완료]")
 
 write.table(trendsMeanDataFrame, trendsFileName, sep=",", row.names = FALSE, fileEncoding="UTF-8")
-cat("\n\n작업 완료.\n")
+cat("\n")

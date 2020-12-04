@@ -67,7 +67,7 @@ set.seed(42135798)
 # Gibbs Sampling을 위한 파일 읽어 들임
 # $date (작성일), $title (제목), $body (기사 본문)
 articlesDataFrame <- read.csv(nounsFileName, header = TRUE, fileEncoding = "UTF-8", stringsAsFactors=FALSE)
-cat("\n기사 ", length(articlesDataFrame[,1]), " 개 및 Topic ", numOfTopics, " 개로 작업 실시.\n", sep='')
+cat("\nTopic", numOfTopics, "\b개로 작업 실시.\n")
 
 cat("\nLDA 형식 데이터 생성... ")
 corpusArticles <- VCorpus(VectorSource(articlesDataFrame$body))
@@ -100,4 +100,4 @@ gibbsResult <- lda.collapsed.gibbs.sampler(documents = ldaFormArticles$documents
 cat("[완료]")
 
 save(articlesDataFrame, wordsNum, gibbsResult, gibbs_alpha, gibbs_eta, file=modelFileName)
-cat("\n\n작업 완료.\n")
+cat("\n")

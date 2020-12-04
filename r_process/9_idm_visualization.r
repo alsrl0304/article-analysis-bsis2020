@@ -86,4 +86,4 @@ cat("[완료]")
 # 생성된 json 파일과 관련 시각화 파일들을 해당 디렉토리에 생성
 serVis(json, out.dir = idmDirName, encoding='UTF-8', open.browser=FALSE)
 
-cat("\n\n작업 완료.\n")
+cat("\n")

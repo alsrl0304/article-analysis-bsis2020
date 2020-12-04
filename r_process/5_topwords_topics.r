@@ -86,4 +86,4 @@ if (shouldMakeRates) {
     write.table(wordsRatesMatrix, wordsRateFileName, sep=",", row.names = TRUE, col.names = NA, fileEncoding="UTF-8")
 }
 
-cat("\n\n작업 완료.\n")
+cat("\n")

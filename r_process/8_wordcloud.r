@@ -36,7 +36,7 @@ library(wordcloud2)
 library(htmlwidgets)
 
 selectedWordsMat <- read.csv(frequentFileName, header = TRUE, fileEncoding = "UTF-8", stringsAsFactors=FALSE)
-cat("\n상위 단어", length(selectedWordsMat[,1]), " 개로 작업 실시.\n", sep='')
+cat("\n상위 단어 [", length(selectedWordsMat[,1]), "]개로 작업 실시.\n", sep='')
 
 
 cat("\n워드클라우드 생성 중... ")
@@ -54,4 +54,4 @@ dir.create(cloudDirName, showWarnings=FALSE) # 목표 디렉터리 생성
 setwd(cloudDirName) # 작업 위치 변경
 saveWidget(cloud, "wordcloud.html", selfcontained = FALSE) # 워드클라우드 저장
 setwd(oriWorkDir) # 작업 위치 복원
-cat("\n\n작업 완료.\n")
+cat("\n")
