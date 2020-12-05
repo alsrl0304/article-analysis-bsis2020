@@ -47,7 +47,7 @@ library(tm)
 
 # $date (작성일), $title (제목), $body (기사 본문)
 articlesDataFrame <- read.csv(nounsFileName, header = TRUE, fileEncoding = "UTF-8", stringsAsFactors=FALSE)
-cat("Select Top Rank Words... ")
+cat("Select Top", wordsNum, "Words... ")
 
 corpusArticles <- VCorpus(VectorSource(articlesDataFrame$body)) 
 
@@ -65,5 +65,5 @@ selectedWordsMat <- frequencyWordsMat[1:wordsNum,]
 
 cat("[DONE]\n")
 
-# 상위 100개의 단어를 csv 형태의 파일로 저장
+# 상위 단어를 csv 형태의 파일로 저장
 write.table(selectedWordsMat, frequentFileName, sep=", ", row.names = FALSE, fileEncoding="UTF-8")

@@ -14,7 +14,7 @@ Rscript --encoding=utf8 1_extract_nouns.r -i %1 -f %2 -o %3\nouns.csv
 IF NOT EXIST %3\nouns.csv ( goto QUIT )
 
 rem 최고 빈도수 단어 확인
-Rscript --encoding=utf8 2_frequency.r -i %3\nouns.csv -n 25 -o %3\frequent.csv
+Rscript --encoding=utf8 2_frequency.r -i %3\nouns.csv -n 50 -o %3\frequent.csv
 IF NOT EXIST %3\frequent.csv ( goto QUIT )
 
 rem Topic Coherence 계산
@@ -22,7 +22,7 @@ Rscript --encoding=utf8 3_topic_coherence.r -i %3\nouns.csv -m 5 -M 15 -o %3\coh
 IF NOT EXIST %3\coherence.csv ( goto QUIT )
 
 rem Gibbs Sampling 수행
-Rscript --encoding=utf8 4_gibbs_sampling.r -i %3\nouns.csv -n 25 -T %3\coherence.csv -o %3\gibbs.RData
+Rscript --encoding=utf8 4_gibbs_sampling.r -i %3\nouns.csv -n 50 -T %3\coherence.csv -o %3\gibbs.RData
 IF NOT EXIST %3\gibbs.RData ( goto QUIT )
 
 rem Topic 별 상위 단어 확인
@@ -49,6 +49,9 @@ rem 인코딩 변경 (UTF8)
 powershell -command "$content = Get-Content %3\IDM\lda.json; [IO.File]::WriteAllLines(\"%3\IDM\lda2.json\", $content)"
 del %3\IDM\lda.json > nul
 move %3\IDM\lda2.json %3\IDM\lda.json > nul
+
+rem IDM 문서 확인용 node 파일 복사
+copy index.js %3\IDM\index.js > nul
 
 goto QUIT
 
