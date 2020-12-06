@@ -97,16 +97,14 @@ cat("\rExtracting Nouns... [DONE]\n")
 
 cat("Removing Infrequent Words... ")
 
+# Corpus 구조로 변환
 corpusArticles <- VCorpus(VectorSource(articlesDataFrame$body)) 
-# term-document 매트릭스를 만들기 위하여 corpus 구조로 변환
 
-tdmArticles <- TermDocumentMatrix(corpusArticles, control=list(wordLengths=c(1, Inf))) 
-# 텀-다큐먼트 매트릭스 생성
-# TermDocumentMatrix는 기본적으로 두 글자 이상의 단어만 생성에 사용하는 것이 디폴트 옵션임
-# 따라서 한글과 같이 한 글자도 의미가 있는 경우에는 control=list(wordLengths=c(1, Inf)) 옵션을
-# 사용하여 한 글자 단어도 매트릭스 생성에 포함하기 위한 것임
+# Term-Document Matrix 생성
+tdmArticles <- TermDocumentMatrix(corpusArticles, control=list(wordLengths=c(2, Inf))) 
 
-infrequentWordsVector <- paste(findFreqTerms(tdmArticles, 1,2)) #출현 횟수가 1-2회인 단어들을 추출
+#출현 횟수가 1-2회인 단어들을 추출
+infrequentWordsVector <- paste(findFreqTerms(tdmArticles, 1,2)) 
 
 #출현 횟수가 낮은 단어들을 보통명사들만 저장된 문서들에서 제거하기 위한 루틴
 done <- 1
@@ -123,23 +121,6 @@ cat("\rRemoving Infrequent Words... [DONE]\n")
 ################### 불용어 제거 루틴 ####################
 
 cat("Removing Stopwords... ")
-
-corpusArticles <- VCorpus(VectorSource(articlesDataFrame$body)) 
-# term-document 매트릭스를 만들기 위하여 corpus 구조로 변환
-
-#tdm <- TermDocumentMatrix(corp, control=list(wordLengths=c(1, Inf))) #한 글자 이상 남김
-
-tdmArticles <- TermDocumentMatrix(corpusArticles, control=list(wordLengths=c(1, Inf))) 
-# 텀-다큐먼트 매트릭스 생성
-# TermDocumentMatrix는 기본적으로 두 글자 이상의 단어만 생성에 사용하는 것이 디폴트 옵션임
-# 따라서 한글과 같이 한 글자도 의미가 있는 경우에는 control=list(wordLengths=c(1, Inf)) 옵션을
-# 사용하여 한 글자 단어도 매트릭스 생성에 포함하기 위한 것임
-
-matArticles <- as.matrix(tdmArticles)
-# tdm 매트릭스를 단순 2차원 단어-문서(요소값은 단어출현 빈도수) 매트릭스로 변환
-
-# 상위빈도의 단어들만으로 matrix 만들기
-orderedWordVector <- order(rowSums(matArticles), decreasing = TRUE) #빈도가 높은 단어들부터 내림차순 순서를 만듦
 
 # 불용어 제거
 filterWordsVector <- scan(filterFileName, what="character", fileEncoding='UTF-8')
