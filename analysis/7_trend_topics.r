@@ -42,7 +42,7 @@ if (is.null(trendsFileName)) {
 
 ################ Topic별 기간에 따른 변화 확인 #################
 
-cat("Analysis Trends", switch(periodSelect, "Daily.", "Monthly.", "Yearly.", "\n"))
+cat("Analysis Trends", switch(periodSelect, "Daily.", "Monthly.", "Yearly."), "\n")
 
 cat("Tracking Articles Proportion Trends... ")
 
