@@ -9,6 +9,7 @@ library(tools)
 argSpec <- matrix(c(
     'help', 'h', 0, 'logical', "help",
     'input', 'i', 1, 'character', "Trained Gibbs Sampling Model, RData File",
+    'number', 'n', 1, 'integer', "Number of Top Rank Words to Show (Default 25)",
     'output', 'o', 1, 'character', "IDM Visualization Document Files Path (Default ./IDM_{input}/)"
 ), byrow=TRUE, ncol=5)
 
@@ -21,10 +22,15 @@ if (!is.null(opts$help)) {
 
 modelFileName <- opts$input
 idmDirName <- opts$output
+showNum <- opts$number
 
 if (is.null(modelFileName)) {
     cat(getopt(argSpec, usage=TRUE))
     q(status=1)
+}
+
+if (is.null(showNum)) {
+    showNum <- 25
 }
 
 if (is.null(idmDirName)) {
@@ -79,7 +85,7 @@ json <- createJSON(
     theta = theta, 
     doc.length = rowTotals, 
     vocab = colnames(dtmArticles),
-    term.frequency = colTotals, R=wordsNum, lambda.step = 0.01, mds.method = jsPCA)
+    term.frequency = colTotals, R=showNum, lambda.step = 0.01, mds.method = jsPCA)
 # R : map에 표시할 토픽별 단어 개수
 cat("[DONE]\n")
 
