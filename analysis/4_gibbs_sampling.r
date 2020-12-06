@@ -9,7 +9,7 @@ library(tools)
 argSpec <- matrix(c(
     'help', 'h', 0, 'logical', "help",
     'input', 'i', 1, 'character', "Extracted Nouns, CSV File",
-    'number', 'n', 1, 'integer', "Number of Top Rank Words (Default 25)",
+    'number', 'n', 1, 'integer', "Number of Top Rank Words to Use (Default 500)",
     'topics', 't', 1, 'integer', "Decided Number of Topics",
     'topic-coherence', 'T', 1, 'character', "Coherence Result, CSV File to Decide Number of Topics",
     'output', 'o', 1, 'character', "Trained Gibbs Sampling Model, RData File (Default gibbs_{topic-num}_{input}.RData)"
@@ -44,7 +44,7 @@ if (is.null(numOfTopics) && is.null(coherenceFileName)) {
 }
 
 if(is.null(wordsNum)) {
-    wordsNum <- 25
+    wordsNum <- 500
 }
 
 if (is.null(modelFileName)) {
@@ -71,7 +71,7 @@ cat("Training Models by", numOfTopics, "\bTopics.\n")
 
 cat("Generating LDA Form Data... ")
 corpusArticles <- VCorpus(VectorSource(articlesDataFrame$body))
-tdmArticles <- TermDocumentMatrix(corpusArticles, control=list(wordLengths=c(1, Inf)))
+tdmArticles <- TermDocumentMatrix(corpusArticles, control=list(wordLengths=c(2, Inf)))
 matArticles <- as.matrix(tdmArticles)
 
 orderedWordsVector <- order(rowSums(matArticles), decreasing = TRUE)
