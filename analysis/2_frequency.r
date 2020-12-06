@@ -9,7 +9,7 @@ library(tools)
 argSpec <- matrix(c(
     'help', 'h', 0, 'logical', "help",
     'input', 'i', 1, 'character', "Extracted Nouns, CSV File",
-    'number', 'n', 1, 'integer', "Number of Top Rank Words (Default 25)",
+    'number', 'n', 1, 'integer', "Number of Top Rank Words to Get (Default 50)",
     'output', 'o', 1, 'character', "Most Frequent Words, CSV File (Default frequent_{input}.csv)"
 ), byrow=TRUE, ncol=5)
 
@@ -30,7 +30,7 @@ if (is.null(nounsFileName)) {
 }
 
 if (is.null(wordsNum)) {
-    wordsNum <- 25
+    wordsNum <- 50
 }
 
 if (is.null(frequentFileName)) {
