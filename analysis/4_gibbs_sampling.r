@@ -38,7 +38,7 @@ if (is.null(numOfTopics) && is.null(coherenceFileName)) {
     cat(getopt(argSpec, usage=TRUE))
     q(status=1)
 } else if (is.null(numOfTopics)) {
-    # Coherence가 최솟값인 토픽 수를 사용
+    # Coherence가 최댓값인 토픽 수를 사용
     coherenceDataFrame <- read.csv(coherenceFileName, header = TRUE, fileEncoding = "UTF-8", stringsAsFactors=FALSE)
     numOfTopics = coherenceDataFrame[which.max(coherenceDataFrame$coherence),]$topics
 }
